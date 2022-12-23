@@ -1,9 +1,9 @@
 {
     "id": "D179CA55",
-    "path": "C:/Users/eaper/CoeRA/BookChapter/Code/MAIN.R",
+    "path": "C:/Users/eaper/CoeRA/IkeChapter/Code/MAIN.R",
     "project_path": "Code/MAIN.R",
     "type": "r_source",
-    "hash": "745830723",
+    "hash": "4281612884",
     "contents": "",
     "dirty": false,
     "created": 1671410614858.0,
@@ -12,16 +12,17 @@
     "properties": {
         "source_window_id": "",
         "Source": "Source",
-        "cursorPosition": "77,0",
-        "scrollLine": "66",
-        "docOutlineVisible": "0"
+        "cursorPosition": "65,2",
+        "scrollLine": "24",
+        "docOutlineVisible": "0",
+        "docOutlineSize": "231"
     },
     "folds": "",
-    "lastKnownWriteTime": 1671473684,
+    "lastKnownWriteTime": 1671832446,
     "encoding": "ISO8859-1",
     "collab_server": "",
     "source_window": "",
-    "last_content_update": 1671473684946,
+    "last_content_update": 1671832446769,
     "read_only": false,
     "read_only_alternatives": []
 }

@@ -3,37 +3,36 @@
 #:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 # 
 # Contributor(s): Brenna Jungers, Evan Perry, Drew Westberg
-# Last Revised: 2022-12-18
+# Last Revised: 2022-12-23
 # 
 # Purpose: The purpose of this script is to clean, organize, and summarize key 
 # data related to the impact of natural disasters on local charitable giving. 
 # Primary goals include: (1) basic data cleaning on nonprofit data, and (2) 
 # supplementing nonprofit data with other county-level data.
 # 
+# 
 # Input files: 
 # 
 # co_fy_trends.parquet : NCCS trend data on individual nonprofits; contains
-#     records for the nonprofits in the "other" category.
+#     records for the nonprofits in the "other" category. (Not on GitHub)
 # 
 # pc_fy_trends.parquet : NCCS trend data on individual nonprofits; contains
-#     records for public charities.
+#     records for public charities.(Not on GitHub)
 # 
 # pf_fy_trends.parquet : NCCS trend data on individual nonprofits; contains
-#     records for private foundations.
+#     records for private foundations. (Not on GitHub)
+# 
+# nccs.csv : Cleaned data from NCCS. (On GitHub)
 # 
 # 2020_Planning_Data.csv : County-level census data from the 2010 decennial
 #     Census and the 2014 American Community Survey. Use selected variables for
 #     perspective on demographic makeup of counties.
-# 
-# annual_population.csv : 1-year population estimates from the ACS, 2000-2014.
-# 
-# County_SoVI.csv : The Social Vulnerability Index, county-level. This is based
-#     in the 2010-2014 ACS.
-# 
-# CAINC35_ALL_AREAS_1969_2020.csv : County-level transfers data over the 1969 to
-#     2020 time period. Contains plenty of data that is entirely out unnecessary
-#     to our analysis. The only thing we want is a variable looking at
-#     transfers to nonprofits.
+#
+# co-est2009-alldata.csv : County-level annual population estimates from 2000 - 
+#     2009. 
+#
+# co-est2019-alldata.csv : County-level annual population estimates from 2010 - 
+#     2019. 
 #     
 # sf12010countydistance500miles.csv : This file contains the distances of every 
 #     pair of counties that are within 500 miles of each other.
@@ -44,27 +43,27 @@
 # hurricanes.csv : A hand-cleaned file that lists the disaster numbers for all
 #     relevant hurricanes.
 # 
+# 
 # Output files: 
 # 
 # cleaned_data.csv : Cleaned data incorporating the data listed above. This 
-#     is panel data with each observation representing a county-year. A dummy 
-#     variable is included indicating that the county-year experienced a 
-#     disaster previously in the period. Note: The census data is not in panel 
-#     form and is identical across time periods, with the exception of the 
-#     population data.
+#     is panel data with each observation representing a county-year.
 #
-# descriptive.html : Descriptive statistics table.
+# summary_stats.html : Descriptive statistics table.
 #
-# reg1.html : Regression results for the first regression table.
+# regression_results1.html : Regression results for the first regression table.
 #
-# reg2.html : Regression results for the second regression table.
+# regression_results2.html : Regression results for the second regression table.
+# 
+# All the figures in the Results/Figures subdirectory.
 # 
 # 
 # Outline: (Crtl + Shift + O) 
-#   1. Importing packages and Setup
-#   2. Reading and Processing Data
-#   3. Composing the Clean Data
-#   4. Analysis
+#   1. Code to Change When Replicating
+#   2. Importing Packages and Setup
+#   3. Reading and Processing Data
+#   4. Data Summary & Visualization
+#   5. Analysis
 #
 #:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
@@ -73,7 +72,7 @@
 ## Code to Change When Replicating ---------------------------------------------
 #:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
-# Reset your working directory
+# Set your working directory
 setwd("C:/Users/eaper/CoeRA/IkeChapter")
 
 #:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -115,164 +114,174 @@ options(scipen = 9)    # Get rid of scientific notation
 ### NCCS Data ------------------------------------------------------------------
 #:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
-#### Consolidate the NCCS Trend Files ------------------------------------------
+# The original files with all the NCCS data are too large to upload to GitHub. 
+# I've commented out the code needed to process the NCCS data---let me know if 
+# you want to use the raw NCCS data and I'll send it.
+# 
+# #### Consolidate the NCCS Trend Files ------------------------------------------
+# 
+# my_vars1 <- c(
+#   "CONT",
+#   "CoreSrc",
+#   "EIN",
+#   "EXPS",
+#   "FIPS",
+#   "FISYR",
+#   "FNDNCD",
+#   "GRPROF",
+#   "INVINC",
+#   "ASS_EOY",
+#   "LEVEL1",
+#   "LEVEL2",
+#   "LEVEL3",
+#   "LEVEL4",
+#   "LIAB_EOY",
+#   "MAJGRPB",
+#   "NAICS",
+#   "NAME",
+#   "NETINC",
+#   "nteeFinal",
+#   "ntmaj10",
+#   "ntmaj12",
+#   "ntmaj5",
+#   "OTHINC",
+#   "OUTNCCS",
+#   "RULEDATE",
+#   "STATE",
+#   "SUBSECCD",
+#   "TAXPER",
+#   "TOTREV",
+#   "ZIP5"
+# )
+# 
+# my_vars2 <- c(
+#   "P1TCONT",
+#   "CoreSrc",
+#   "EIN",
+#   "P1TOTEXP",
+#   "FIPS",
+#   "FISYR",
+#   "FNDNCD",
+#   "P1GINVPF",
+#   "P1NETINV",
+#   "P2TOTAST",
+#   "LEVEL1",
+#   "LEVEL2",
+#   "LEVEL3",
+#   "LEVEL4",
+#   "P2TLIABL",
+#   "MAJGRPB",
+#   "NAICS",
+#   "NAME",
+#   "P1NADINC",
+#   "nteeFinal",
+#   "ntmaj10",
+#   "ntmaj12",
+#   "ntmaj5",
+#   "P1OTHINC",
+#   "OUTNCCS",
+#   "RULEDATE",
+#   "STATE",
+#   "SUBSECCD",
+#   "TAXPER",
+#   "P1TOTREV",
+#   "ZIP5"
+# )
+# 
+# 
+# df1 <- read_parquet(
+#   "Data/NCCS/co_fy_trends.parquet",
+#   col_select = all_of(my_vars1)
+# )
+# 
+# df2 <- read_parquet(
+#   "Data/NCCS/pc_fy_trends.parquet",
+#   col_select = all_of(my_vars1)
+# )
+# 
+# df3 <- read_parquet(
+#   "Data/NCCS/pf_fy_trends.parquet",
+#   col_select = all_of(my_vars2)
+# )
+# 
+# # The private foundation variable names do not match the other files
+# df3 <- df3 %>% 
+#   rename(
+#     GRPROF = P1GINVPF,
+#     NETINC = P1NADINC,
+#     INVINC = P1NETINV,
+#     OTHINC = P1OTHINC,
+#     CONT = P1TCONT,
+#     EXPS = P1TOTEXP,
+#     TOTREV = P1TOTREV,
+#     LIAB_EOY = P2TLIABL,
+#     ASS_EOY = P2TOTAST
+#   )
+# 
+# # Combine
+# nccs <- bind_rows(df1, df2, df3)
+# rm(df1, df2, df3, my_vars1, my_vars2)
+# gc()
+# 
+# 
+# #### Clean the NCCS Data -------------------------------------------------------
+# 
+# # We can only look at the period from 2000 to 2014
+# nccs <- nccs[nccs$FISYR >= 2000, ]
+# nccs <- nccs[nccs$FISYR <= 2014, ]
+# 
+# # Remove any observations with a missing county
+# nccs <- nccs[!is.na(nccs$FIPS),]
+# nccs <- nccs[!(nccs$FIPS %in% c("AA","AE","AP")),]
+# 
+# # Also remove some useless variables
+# nccs <- nccs %>% 
+#   select(-c(          
+#     "CoreSrc",
+#     "FNDNCD",
+#     "OUTNCCS",
+#     "TAXPER",
+#     "RULEDATE"
+#   ))
+# 
+# # Group and summarize variables for each county and fiscal year
+# nccs <- nccs %>% 
+#   group_by(FIPS, FISYR) %>% 
+#   summarize(
+#     # Concentration Indexes
+#     # For now, do not group by industry
+#     HHI_CONT = sum((CONT/sum(CONT, nar.rm=T))^2, na.rm = T),
+#     HHI_EXPS = sum((EXPS/sum(EXPS, nar.rm=T))^2, na.rm = T),
+#     HHI_GRPROF = sum((GRPROF/sum(GRPROF, nar.rm=T))^2, na.rm = T),
+#     HHI_INVINC = sum((INVINC/sum(INVINC, nar.rm=T))^2, na.rm = T),
+#     HHI_REV = sum((TOTREV/sum(TOTREV, nar.rm=T))^2, na.rm = T),
+#     HHI_ASS = sum((ASS_EOY/sum(ASS_EOY, nar.rm=T))^2, na.rm = T),
+#     # Base sums
+#     NONPROFITS = n(),
+#     CONT = sum(CONT, na.rm = T),
+#     EXPS = sum(EXPS, na.rm = T),
+#     GRPROF = sum(GRPROF, na.rm = T),
+#     INVINC = sum(INVINC, na.rm = T),
+#     OTHINC = sum(OTHINC, na.rm = T),
+#     TOTREV = sum(TOTREV, na.rm = T),
+#     TOTASS = sum(ASS_EOY, na.rm = T)
+#   ) %>% 
+#   ungroup()
+# 
+# # Remove unused data from memory
+# gc()
+# 
+# # Just in case: Be sure to remove counties with a missing FIPS code
+# nccs <- nccs[!is.na(nccs$FIPS),]
+# 
+# # Create the unique ID variable
+# nccs$co_year <- paste(nccs$FIPS, nccs$FISYR, sep="-")
+# 
+# # Write to another file that will be small enough for GitHub
+# write_csv(nccs, "Data/nccs.csv", na="")
 
-my_vars1 <- c(
-  "CONT",
-  "CoreSrc",
-  "EIN",
-  "EXPS",
-  "FIPS",
-  "FISYR",
-  "FNDNCD",
-  "GRPROF",
-  "INVINC",
-  "ASS_EOY",
-  "LEVEL1",
-  "LEVEL2",
-  "LEVEL3",
-  "LEVEL4",
-  "LIAB_EOY",
-  "MAJGRPB",
-  "NAICS",
-  "NAME",
-  "NETINC",
-  "nteeFinal",
-  "ntmaj10",
-  "ntmaj12",
-  "ntmaj5",
-  "OTHINC",
-  "OUTNCCS",
-  "RULEDATE",
-  "STATE",
-  "SUBSECCD",
-  "TAXPER",
-  "TOTREV",
-  "ZIP5"
-)
-
-my_vars2 <- c(
-  "P1TCONT",
-  "CoreSrc",
-  "EIN",
-  "P1TOTEXP",
-  "FIPS",
-  "FISYR",
-  "FNDNCD",
-  "P1GINVPF",
-  "P1NETINV",
-  "P2TOTAST",
-  "LEVEL1",
-  "LEVEL2",
-  "LEVEL3",
-  "LEVEL4",
-  "P2TLIABL",
-  "MAJGRPB",
-  "NAICS",
-  "NAME",
-  "P1NADINC",
-  "nteeFinal",
-  "ntmaj10",
-  "ntmaj12",
-  "ntmaj5",
-  "P1OTHINC",
-  "OUTNCCS",
-  "RULEDATE",
-  "STATE",
-  "SUBSECCD",
-  "TAXPER",
-  "P1TOTREV",
-  "ZIP5"
-)
-
-
-df1 <- read_parquet(
-  "Data/NCCS/co_fy_trends.parquet",
-  col_select = all_of(my_vars1)
-)
-
-df2 <- read_parquet(
-  "Data/NCCS/pc_fy_trends.parquet",
-  col_select = all_of(my_vars1)
-)
-
-df3 <- read_parquet(
-  "Data/NCCS/pf_fy_trends.parquet",
-  col_select = all_of(my_vars2)
-)
-
-# The private foundation variable names do not match the other files
-df3 <- df3 %>% 
-  rename(
-    GRPROF = P1GINVPF,
-    NETINC = P1NADINC,
-    INVINC = P1NETINV,
-    OTHINC = P1OTHINC,
-    CONT = P1TCONT,
-    EXPS = P1TOTEXP,
-    TOTREV = P1TOTREV,
-    LIAB_EOY = P2TLIABL,
-    ASS_EOY = P2TOTAST
-  )
-
-# Combine
-nccs <- bind_rows(df1, df2, df3)
-rm(df1, df2, df3, my_vars1, my_vars2)
-gc()
-
-
-#### Clean the NCCS Data -------------------------------------------------------
-
-# We can only look at the period from 2000 to 2014
-nccs <- nccs[nccs$FISYR >= 2000, ]
-nccs <- nccs[nccs$FISYR <= 2014, ]
-
-# Remove any observations with a missing county
-nccs <- nccs[!is.na(nccs$FIPS),]
-nccs <- nccs[!(nccs$FIPS %in% c("AA","AE","AP")),]
-
-# Also remove some useless variables
-nccs <- nccs %>% 
-  select(-c(          
-    "CoreSrc",
-    "FNDNCD",
-    "OUTNCCS",
-    "TAXPER",
-    "RULEDATE"
-  ))
-
-# Group and summarize variables for each county and fiscal year
-nccs <- nccs %>% 
-  group_by(FIPS, FISYR) %>% 
-  summarize(
-    # Concentration Indexes
-    # For now, do not group by industry
-    HHI_CONT = sum((CONT/sum(CONT, nar.rm=T))^2, na.rm = T),
-    HHI_EXPS = sum((EXPS/sum(EXPS, nar.rm=T))^2, na.rm = T),
-    HHI_GRPROF = sum((GRPROF/sum(GRPROF, nar.rm=T))^2, na.rm = T),
-    HHI_INVINC = sum((INVINC/sum(INVINC, nar.rm=T))^2, na.rm = T),
-    HHI_REV = sum((TOTREV/sum(TOTREV, nar.rm=T))^2, na.rm = T),
-    HHI_ASS = sum((ASS_EOY/sum(ASS_EOY, nar.rm=T))^2, na.rm = T),
-    # Base sums
-    NONPROFITS = n(),
-    CONT = sum(CONT, na.rm = T),
-    EXPS = sum(EXPS, na.rm = T),
-    GRPROF = sum(GRPROF, na.rm = T),
-    INVINC = sum(INVINC, na.rm = T),
-    OTHINC = sum(OTHINC, na.rm = T),
-    TOTREV = sum(TOTREV, na.rm = T),
-    TOTASS = sum(ASS_EOY, na.rm = T)
-  ) %>% 
-  ungroup()
-
-# Remove unused data from memory
-gc()
-
-# Just in case: Be sure to remove counties with a missing FIPS code
-nccs <- nccs[!is.na(nccs$FIPS),]
-
-# Create the unique ID variable
-nccs$co_year <- paste(nccs$FIPS, nccs$FISYR, sep="-")
+# Read in the cleaned NCCS data 
+nccs <- read_csv("Data/nccs.csv")
 
 #:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
@@ -306,16 +315,43 @@ census <- census %>%
 ### Population Data ------------------------------------------------------------
 #:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
-# Bring in the annual population data from the Census -- this is actually annual
-pop <- read_csv("Data/annual_population.csv")
+filename <- c("Data/co-est2009-alldata.csv", "Data/co-est2019-alldata.csv")
+df_list <- as.list(rep(NA, 2))
 
-# Because this is annual, the merging variable will be co_year
-pop$co_year <- paste(pop$FIPS, pop$year, sep="-")
-pop <- pop %>% 
-  select("co_year","pop")
+for (i in 1:2){
+  
+  my_file <- filename[i]
+  
+  df <- read_csv(my_file)
+  df <- df[df$COUNTY != "000",]
+  
+  df$FIPS <- paste(df$STATE, df$COUNTY, sep="")
+  
+  keep <- grepl("FIPS", names(df)) | grepl("POPESTIMATE", names(df))
+  
+  df <- df[,keep]
+  
+  temp_vec <- names(df)
+  temp_vec <- temp_vec[temp_vec != "FIPS"]
+  
+  df <- df %>% 
+    pivot_longer(cols = all_of(temp_vec), 
+                 names_to = "year", 
+                 values_to = "pop") %>% 
+    mutate(
+      year = as.integer(str_remove(year, "POPESTIMATE"))
+    )
+  
+  df_list[[i]] <- df
+  
+}
 
-# Also, store the 2-digit FIPS codes for later
-state_fips <- unique(substr(pop$co_year, 1,2))
+pop <- bind_rows(df_list)
+
+pop$co_year <- paste(pop$FIPS, pop$year, sep="-") 
+pop <- pop %>% select(co_year, pop)
+
+rm(df, df_list, filename, i, keep, my_file, temp_vec)
 
 #:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
@@ -548,32 +584,84 @@ main_df <- main_df %>%
 # County shapefile
 county_shp <- st_as_sf(county_laea)
 
+# Get the proper geographic sample
+dist <- read_csv("Data/sf12010countydistance500miles.csv")
+dist <- dist[dist$mi_to_county < 250, ]
+
+# The disaster data again---but just Ike
+hurricanes <- read_csv("Data/hurricanes.csv")
+hurricanes <- hurricanes[hurricanes$storm == "IKE",]
+fema <- read_csv("Data/FEMA_Disasters.csv")
+fema <- fema[fema$disasterNumber %in% hurricanes$disasterNumber,]
+fema$FIPS <- paste(fema$fipsStateCode, fema$fipsCountyCode, sep="")
+
+# The states with any place with a disaster declaration
+my_states <- unique(fema$fipsStateCode)
+
+# The counties within 250 miles of a disaster county
+dist <- merge(dist, fema, by.x = "county1", by.y = "FIPS")
+counties_250 <- unique(dist$county2)
+
+# The potential geographic sample
+county_shp <- county_shp %>% 
+  mutate(
+    state_fips = str_sub(GEOID, 1, 2)
+  ) %>% 
+  filter(
+    state_fips %in% my_states | GEOID %in% counties_250
+  )
+
 # Temporary availability file
 temp <- main_df %>% 
+  mutate(
+    productivity = EXPS/NONPROFITS,
+    concentration = pop/NONPROFITS,
+    incomes = TOTREV/NONPROFITS,
+    wealth = TOTASS/NONPROFITS,
+    use = CONT/NONPROFITS,
+    dependence = CONT/TOTREV,
+    CONT = CONT,
+    EXPS = EXPS,
+    TOTREV = TOTREV,
+    TOTASS = TOTASS
+  ) %>% 
   group_by(FIPS) %>% 
   summarise(
     treatment = max(treatment),
-    years_in_sample = n()
+    years_in_sample = n(),
+    population = mean(pop),
+    productivity = mean(productivity),
+    concentration = mean(concentration),
+    incomes = mean(incomes),
+    wealth = mean(wealth),
+    use = mean(use),
+    dependence = mean(dependence),
+    CONT = mean(CONT),
+    EXPS = mean(EXPS),
+    TOTREV = mean(TOTREV),
+    TOTASS = mean(TOTASS)
   ) %>% 
   ungroup()
 
-county_shp <- merge(county_shp, temp, by.x="GEOID", by.y="FIPS")
-county_shp$treatment <- as.factor(county_shp$treatment)
+county_shp <- merge(county_shp, temp, by.x="GEOID", by.y="FIPS", all.x=T)
+county_shp$treatment <- ifelse(county_shp$treatment == 1, "Treatment", "Control")
+county_shp$years_in_sample <- replace_na(county_shp$years_in_sample, 0)
 
 # Make the map
 
-png("Results/Figures/geographic_sample.png", width=6, height = 4, units="in",
+png("Results/Figures/geographic_sample.png", width=7, height = 4, units="in",
     res=600)
 tm_shape(county_shp) +
   tm_polygons(
     "treatment",
     border.col = "white",
     title = "Treatment Status",
-    palette = rev(natparks.pals("Yellowstone", 2, type="discrete")))
+    palette = rev(natparks.pals("Yellowstone", 2, type="discrete"))) + 
+  tm_layout(frame = FALSE)
 dev.off()
 
 
-png("Results/Figures/geographic_balance.png", width=6, height = 4, units="in",
+png("Results/Figures/geographic_balance.png", width=7, height = 4, units="in",
     res=600)
 tm_shape(county_shp) +
   tm_polygons(
@@ -582,10 +670,103 @@ tm_shape(county_shp) +
     title = "# of Years in Sample",
     style = "pretty",
     as.count=T,
-    palette = natparks.pals("Denali", 4, type="discrete"))
+    palette = natparks.pals("Denali", 6, type="discrete")) +
+  tm_layout(frame = FALSE)
 dev.off()
 
-rm(temp, county_shp)
+rm(county_shp, dist, fema, hurricanes, temp, counties_250, my_states)
+
+# Make Interactive Maps?
+
+# tmap_mode("view")
+# 
+# `Treatment Status` <- county_shp
+# `Years in Sample` <- county_shp
+# `Population` <- county_shp
+# `Productivity` <- county_shp
+# `Concentration` <- county_shp
+# `Incomes` <- county_shp
+# `Wealth` <- county_shp
+# `Resource Use` <- county_shp
+# `Resource Dependence` <- county_shp
+# `Contributions` <- county_shp
+# `Expenses` <- county_shp
+# `Revenues` <- county_shp
+# `Assests` <- county_shp
+# 
+# 
+# tm_shape(`Treatment Status`) +
+#   tm_polygons(
+#     "treatment",
+#     border.col = "white",
+#     title = "Treatment Status",
+#     palette = rev(natparks.pals("Yellowstone", 2, type="discrete"))) + 
+#   tm_shape(`Years in Sample`) +
+#   tm_polygons(
+#     "years_in_sample",
+#     border.col = "white",
+#     title = "# of Years in Sample",
+#     style = "pretty",
+#     as.count=T,
+#     palette = natparks.pals("Denali", 6, type="discrete")) +
+#   tm_shape(`Population`) +
+#   tm_polygons(
+#     "population",
+#     border.col = "white",
+#     title = "Population",
+#     style = "log10",
+#     palette = rev(natparks.pals("Denali", 6, type="discrete"))) + 
+#   tm_shape(`Contributions`) +
+#   tm_polygons(
+#     "CONT",
+#     border.col = "white",
+#     title = "Contributions",
+#     style = "log10",
+#     palette = rev(natparks.pals("Denali", 6, type="discrete"))) + 
+#   tm_shape(`Productivity`) +
+#   tm_polygons(
+#     "productivity",
+#     border.col = "white",
+#     title = "Productivity",
+#     style = "log10",
+#     palette = rev(natparks.pals("Denali", 6, type="discrete"))) + 
+#   tm_shape(`Concentration`) +
+#   tm_polygons(
+#     "concentration",
+#     border.col = "white",
+#     title = "Concentration",
+#     style = "cont",
+#     palette = rev(natparks.pals("Denali", 6, type="discrete"))) + 
+#   tm_shape(`Incomes`) +
+#   tm_polygons(
+#     "incomes",
+#     border.col = "white",
+#     title = "Incomes",
+#     style = "log10",
+#     palette = rev(natparks.pals("Denali", 6, type="discrete"))) + 
+#   tm_shape(`Wealth`) +
+#   tm_polygons(
+#     "wealth",
+#     border.col = "white",
+#     title = "Wealth",
+#     style = "log10",
+#     palette = rev(natparks.pals("Denali", 6, type="discrete"))) + 
+#   tm_shape(`Resource Use`) +
+#   tm_polygons(
+#     "use",
+#     border.col = "white",
+#     title = "Resource Use",
+#     style = "log10",
+#     palette = rev(natparks.pals("Denali", 6, type="discrete"))) + 
+#   tm_shape(`Resource Dependence`) +
+#   tm_polygons(
+#     "dependence",
+#     border.col = "white",
+#     title = "Resource Dependence",
+#     style = "cont",
+#     palette = rev(natparks.pals("Denali", 6, type="discrete")))
+
+rm(list=setdiff(ls(), "main_df"))
 
 #:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
@@ -594,26 +775,32 @@ rm(temp, county_shp)
 ### Summary Statistics Table ---------------------------------------------------
 #:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
-summ_df <- data.frame(
-  main_df[
-    c("NONPROFITS", "CONT", "EXPS", "TOTREV", "TOTASS", "LAND_AREA", "pop", 
-      "npo_capita", "npo_area", "cont_capita", "cont_area", "cont_npo")
-  ]
-)
-
-summ_df <- summ_df %>% 
+summ_df <- main_df %>% 
   mutate(
     CONT = CONT/1000000,
     EXPS = EXPS/1000000,
     TOTREV = TOTREV/1000000,
     TOTASS = TOTASS/1000000,
-    npo_capita = npo_capita * 1000,
-    npo_area = npo_area * 10
+    productivity = EXPS/NONPROFITS,
+    concentration = pop/NONPROFITS,
+    incomes = TOTREV/NONPROFITS,
+    wealth = TOTASS/NONPROFITS,
+    use = CONT/NONPROFITS,
+    dependence = CONT/TOTREV
   )
+
+summ_df <- data.frame(
+  summ_df[
+    c("pop", "LAND_AREA", 
+      "NONPROFITS", "TOTASS", "CONT", "EXPS", "TOTREV",  
+      "productivity", "concentration", "incomes", "wealth", "use", "dependence"   
+      )
+  ]
+)
+
 
 stargazer(summ_df, 
           summary = TRUE, 
-          type = "html",
           summary.stat = c(
             "mean", "median", "sd", "min", "max"
           ),
@@ -621,20 +808,21 @@ stargazer(summ_df,
           notes = "Unbalanced panel; N = 7,600; T = 14; C = 555",
           style = "aer",
           covariate.labels = c(
-            "# of Nonprofits",
-            "Contributions (millions USD)",
-            "Expenses (millions USD)",
-            "Total Revenues (millions USD)",
-            "Total Assets (millions USD)",
-            "Land Area (sq miles)",
-            "Population",
-            "Nonprofits/1000 people",
-            "Nonprofits/10 sq miles",
-            "Contributions per Capita",
-            "Contributions per sq mile",
-            "Contributions per Nonprofit"
+            "\\quad Population",
+            "\\quad Land Area (sq miles)",
+            "\\quad \\# of Nonprofits",
+            "\\quad Assets (millions USD)",
+            "\\quad Contributions (millions USD)",
+            "\\quad Expenses (millions USD)",
+            "\\quad Revenues (millions USD)",
+            "\\quad Productivity (Expenses/Nonprofit)",
+            "\\quad Concentration (Population/Nonprofit)",
+            "\\quad Incomes (Revenue/Nonprofit)",
+            "\\quad Wealth (Assets/Nonprofit)",
+            "\\quad Resource Use (Contributions/Nonprofit)",
+            "\\quad Resource Dependence (Contributions/Revenue)"
           ),
-          out = "Results/summary_stats.html"
+          out = "Results/summary_stats.tex"
           )
 
 rm(summ_df)
@@ -675,6 +863,36 @@ ggplot(conts, aes(x=mean_pop, y=mean_cont/1000000)) +
   theme_bw()
 dev.off()
 
+rm(conts)
+
+#:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+
+#:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+### Natural Disasters Figure ---------------------------------------------------
+#:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+disasters <- read_csv("Data/FEMA_Disasters.csv")
+
+disasters_ts <- disasters %>% 
+  filter(
+    declarationType == "DR",
+    fyDeclared < 2022,
+  ) %>% 
+  distinct(disasterNumber, .keep_all = T) %>% 
+  count(fyDeclared)
+
+png("Results/Figures/major_disasters.png", width=7, height=4, units="in",res=600)
+ggplot(disasters_ts, aes(x = fyDeclared, y = n)) +
+  geom_line(lwd=1.25, color = natparks.pals("Yellowstone", 1)) +
+  geom_point(color="white", size=4) +
+  geom_point(color = natparks.pals("Yellowstone", 1), size = 3) + 
+  labs(x="\nFiscal Year of Declaration", y="# of Major Disaster Declarations\n") + 
+  theme_bw()
+dev.off()
+
+rm(disasters, disasters_ts)
+
 #:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
 
@@ -709,7 +927,7 @@ p1 <- ggplot(ike_did, aes(x=year, y=productivity, color=as.factor(treatment))) +
   geom_vline(xintercept = my_hityear) +
   geom_line(lwd = 2) +
   labs(x="",y="Log Productivity\n") +
-  scale_color_manual(values = natparks.pals("Yellowstone", 2),
+  scale_color_manual(values = rev(natparks.pals("Yellowstone", 2)),
                      labels=c("Control","Treatment")) +
   theme_bw() +
   theme(legend.title = element_blank(), text = element_text(size = 9))
@@ -718,7 +936,7 @@ p2 <- ggplot(ike_did, aes(x=year, y=concentration, color=as.factor(treatment))) 
   geom_vline(xintercept = my_hityear) +
   geom_line(lwd = 2) +
   labs(x="",y="Log Concentration\n") +
-  scale_color_manual(values = natparks.pals("Yellowstone", 2),
+  scale_color_manual(values = rev(natparks.pals("Yellowstone", 2)),
                      labels=c("Control","Treatment")) +
   theme_bw() +
   theme(legend.title = element_blank(), text = element_text(size = 9))
@@ -728,7 +946,7 @@ p3 <- ggplot(ike_did, aes(x=year, y=incomes, color=as.factor(treatment))) +
   geom_vline(xintercept = my_hityear) +
   geom_line(lwd = 2) +
   labs(x="",y="Log Incomes\n") +
-  scale_color_manual(values = natparks.pals("Yellowstone", 2),
+  scale_color_manual(values = rev(natparks.pals("Yellowstone", 2)),
                      labels=c("Control","Treatment")) +
   theme_bw() +
   theme(legend.title = element_blank(), text = element_text(size = 9))
@@ -738,7 +956,7 @@ p4 <- ggplot(ike_did, aes(x=year, y=wealth, color=as.factor(treatment))) +
   geom_vline(xintercept = my_hityear) +
   geom_line(lwd = 2) +
   labs(x="\nYear",y="Log Wealth\n") +
-  scale_color_manual(values = natparks.pals("Yellowstone", 2),
+  scale_color_manual(values = rev(natparks.pals("Yellowstone", 2)),
                      labels=c("Control","Treatment")) +
   theme_bw() +
   theme(legend.title = element_blank(), text = element_text(size = 9))
@@ -747,7 +965,7 @@ p5 <- ggplot(ike_did, aes(x=year, y=use, color=as.factor(treatment))) +
   geom_vline(xintercept = my_hityear) +
   geom_line(lwd = 2) +
   labs(x="\nYear",y="Log Resource Use\n") +
-  scale_color_manual(values = natparks.pals("Yellowstone", 2),
+  scale_color_manual(values = rev(natparks.pals("Yellowstone", 2)),
                      labels=c("Control","Treatment")) +
   theme_bw() +
   theme(legend.title = element_blank(), text = element_text(size = 9))
@@ -756,7 +974,7 @@ p6 <- ggplot(ike_did, aes(x=year, y=dependence, color=as.factor(treatment))) +
   geom_vline(xintercept = my_hityear) +
   geom_line(lwd = 2) +
   labs(x="\nYear",y="Log Resource Dependence\n") +
-  scale_color_manual(values = natparks.pals("Yellowstone", 2),
+  scale_color_manual(values = rev(natparks.pals("Yellowstone", 2)),
                      labels=c("Control","Treatment")) +
   theme_bw() +
   theme(legend.title = element_blank(), text = element_text(size = 9))
@@ -841,66 +1059,83 @@ rm(ike_did, p1, p2, p3, p4, p5, p6, my_hityear)
 ## Analysis --------------------------------------------------------------------
 #:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
-# Make panel data frames
 main_df$tpost_D <- ifelse(main_df$year >= main_df$hit_year, 1, 0)
+
+# Dichotomize the contributions
+main_df <- main_df %>% 
+  group_by(year, treatment) %>% 
+  mutate(
+    cont_dich = ifelse(CONT > median(CONT), 1, 0)
+  ) %>% 
+  ungroup
+
+
+# Make panel data frames
 df_storm <- pdata.frame(main_df, index = c("FIPS", "year"))
 b_df_storm <- make.pbalanced(main_df, index = c("FIPS", "year"), 
                              balance.type = "shared.individuals")
+
+
+# Write a function to make the standard errors
+do_the_SE <- function(model){
+  # Cluster the SEs
+  se <- data.frame(summary(model, cluster = "FIPS")$coefficients)$`Std..Error`
+  
+  # Fix the position problem
+  temp <- which(summary(model)[["aliased"]])
+  se <- append(se, 1, after=temp[1]-1)
+  se <- append(se, 1, after=temp[2]-1)
+  
+  return(se)
+  
+}
 
 #:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 ### First Set of Regressions ---------------------------------------------------
 #:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
-# Regression Table 1
+mod1 <- lm(log(exps_npo) ~ treatment*tpost_D + 
+             as.factor(year) + as.factor(FIPS),
+           data = df_storm)
 
-mod1 <- plm(log(exps_npo) ~ treatment*tpost_D*log(CONT) +
-              as.factor(year) + as.factor(FIPS),
-            data = df_storm,
-            index = c("FIPS", "year"),
-            model = "within")
+mod2 <- lm(log(pop/NONPROFITS) ~ treatment*tpost_D + 
+             as.factor(year) + as.factor(FIPS),
+           data = df_storm)
 
-mod2 <- plm(log(pop/NONPROFITS) ~ treatment*tpost_D*log(CONT) +
-              as.factor(year) + as.factor(FIPS),
-            data = df_storm,
-            index = c("FIPS", "year"),
-            model = "within")
+mod3 <- lm(log(TOTREV/NONPROFITS) ~ treatment*tpost_D + 
+             as.factor(year) + as.factor(FIPS),
+           data = df_storm)
 
-mod3 <- plm(log(TOTREV/NONPROFITS) ~ treatment*tpost_D*log(CONT) +
-              as.factor(year) + as.factor(FIPS),
-            data = df_storm,
-            index = c("FIPS", "year"),
-            model = "within")
+mod4 <- lm(log(TOTASS/NONPROFITS) ~ treatment*tpost_D + 
+             as.factor(year) + as.factor(FIPS),
+           data = df_storm)
 
-mod4 <- plm(log(TOTASS/NONPROFITS) ~ treatment*tpost_D*log(CONT) +
-              as.factor(year) + as.factor(FIPS),
-            data = df_storm,
-            index = c("FIPS", "year"),
-            model = "within")
+mod5 <- lm(log(CONT/NONPROFITS) ~ treatment*tpost_D + 
+             as.factor(year) + as.factor(FIPS),
+           data = df_storm)
 
-mod5 <- plm(log(CONT/NONPROFITS) ~ treatment*tpost_D*log(CONT) +
-              as.factor(year) + as.factor(FIPS),
-            data = df_storm,
-            index = c("FIPS", "year"),
-            model = "within")
+mod6 <- lm(cont_rev ~ treatment*tpost_D + 
+             as.factor(year) + as.factor(FIPS),
+           data = df_storm)
 
-mod6 <- plm(log(CONT/TOTREV) ~ treatment*tpost_D*log(CONT) +
-              as.factor(year) + as.factor(FIPS),
-            data = df_storm,
-            index = c("FIPS", "year"),
-            model = "within")
+my_models = list(mod1, mod2, mod3, mod4, mod5, mod6)
+my_SE <- lapply(my_models, do_the_SE)
+
 
 stargazer(mod1, mod2, mod3, mod4, mod5, mod6,
-          title = "Hurricane Ike, Unbalanced Panel",
-          omit = "factor",
-          type = "html",
-          order = c(6,3,5,4,2,1),
+          title = "Hurricane Ike, Canonical DiD---Unbalanced Panel",
+          omit = c("factor","Constant"),
+          se = my_SE,
+          type = "latex",
+          order = c(
+            "treatment:tpost_D",
+            "treatment",
+            "tpost_D"
+          ),
           font.size = 'footnotesize',
           covariate.labels = c(
-            "Treatment * Post Storm * Log Cont",
-            "Treatment * Post Storm",
-            "Post Storm * Log Cont",
-            "Treatment * Log Cont",
-            "Log Cont",
+            "Disaster * Post Storm",
+            "Disaster",
             "Post Storm"
           ),
           dep.var.labels = c(
@@ -911,8 +1146,10 @@ stargazer(mod1, mod2, mod3, mod4, mod5, mod6,
             "Resource Use",
             "Resource Dependence"
           ),
-          column.sep.width = "20pt",
-          out = 'Results/regression_results1.html')
+          omit.stat = c("rsq", "adj.rsq"), 
+          out = 'Results/regression_results1.tex')
+
+rm(mod1, mod2, mod3, mod4, mod5, mod6, my_models, my_SE)
 
 #:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
@@ -921,57 +1158,59 @@ stargazer(mod1, mod2, mod3, mod4, mod5, mod6,
 ### Second Set of Regressions --------------------------------------------------
 #:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
-# Regression Table 2
+# Unbalanced Panel
 
-mod1 <- plm(log(exps_npo) ~ treatment*tpost_D*log(CONT) +
-              as.factor(year) + as.factor(FIPS),
-            data = b_df_storm,
-            index = c("FIPS", "year"),
-            model = "within")
+mod1 <- lm(log(exps_npo) ~ treatment*tpost_D*log(CONT) + 
+             as.factor(year) + as.factor(FIPS),
+           data = df_storm)
 
-mod2 <- plm(log(pop/NONPROFITS) ~ treatment*tpost_D*log(CONT) +
-              as.factor(year) + as.factor(FIPS),
-            data = b_df_storm,
-            index = c("FIPS", "year"),
-            model = "within")
+mod2 <- lm(log(pop/NONPROFITS) ~ treatment*tpost_D*log(CONT) + 
+             as.factor(year) + as.factor(FIPS),
+           data = df_storm)
 
-mod3 <- plm(log(TOTREV/NONPROFITS) ~ treatment*tpost_D*log(CONT) +
-              as.factor(year) + as.factor(FIPS),
-            data = b_df_storm,
-            index = c("FIPS", "year"),
-            model = "within")
+mod3 <- lm(log(TOTREV/NONPROFITS) ~ treatment*tpost_D*log(CONT) + 
+             as.factor(year) + as.factor(FIPS),
+           data = df_storm)
 
-mod4 <- plm(log(TOTASS/NONPROFITS) ~ treatment*tpost_D*log(CONT) +
-              as.factor(year) + as.factor(FIPS),
-            data = b_df_storm,
-            index = c("FIPS", "year"),
-            model = "within")
+mod4 <- lm(log(TOTASS/NONPROFITS) ~ treatment*tpost_D*log(CONT) + 
+             as.factor(year) + as.factor(FIPS),
+           data = df_storm)
 
-mod5 <- plm(log(CONT/NONPROFITS) ~ treatment*tpost_D*log(CONT) +
-              as.factor(year) + as.factor(FIPS),
-            data = b_df_storm,
-            index = c("FIPS", "year"),
-            model = "within")
+mod5 <- lm(log(CONT/NONPROFITS) ~ treatment*tpost_D*log(CONT) + 
+             as.factor(year) + as.factor(FIPS),
+           data = df_storm)
 
-mod6 <- plm(log(CONT/TOTREV) ~ treatment*tpost_D*log(CONT) +
-              as.factor(year) + as.factor(FIPS),
-            data = b_df_storm,
-            index = c("FIPS", "year"),
-            model = "within")
+mod6 <- lm(cont_rev ~ treatment*tpost_D*log(CONT) + 
+             as.factor(year) + as.factor(FIPS),
+           data = df_storm)
+
+my_models = list(mod1, mod2, mod3, mod4, mod5, mod6)
+my_SE <- lapply(my_models, do_the_SE)
+
 
 stargazer(mod1, mod2, mod3, mod4, mod5, mod6,
-          title = "Hurricane Ike, Balanced Panel",
-          omit = "factor",
-          type = "html",
-          order = c(6,3,5,4,2,1),
+          title = "Hurricane Ike, Scaled with Log Contributions---Unbalanced Panel",
+          omit = c("factor","Constant"),
+          se = my_SE,
+          type = "latex",
+          order = c(
+            "treatment:tpost_D:log(CONT)",
+            "treatment:tpost_D",
+            "treatment:log(CONT)",
+            "tpost_D:log(CONT)",
+            "treatment",
+            "tpost_D",
+            "log(CONT)"
+          ),
           font.size = 'footnotesize',
           covariate.labels = c(
-            "Treatment * Post Storm * Log Cont",
-            "Treatment * Post Storm",
-            "Post Storm * Log Cont",
-            "Treatment * Log Cont",
-            "Log Cont",
-            "Post Storm"
+            "Disaster * Post Storm * Log Cont.",
+            "Disaster * Post Storm",
+            "Disaster * Log Cont.",
+            "Post Storm *  Log Cont.",
+            "Disaster",
+            "Post Storm",
+            "Log Cont."
           ),
           dep.var.labels = c(
             "Productivity",
@@ -981,10 +1220,153 @@ stargazer(mod1, mod2, mod3, mod4, mod5, mod6,
             "Resource Use",
             "Resource Dependence"
           ),
-          column.sep.width = "20pt",
-          out = 'Results/regression_results2.html')
+          omit.stat = c("rsq", "adj.rsq"), 
+          out = 'Results/regression_results2.tex')
 
-rm(b_df_storm, df_storm, mod1, mod2, mod3, mod4, mod5, mod6)
+rm(mod1, mod2, mod3, mod4, mod5, mod6, my_models, my_SE)
+
+
+# Balanced Panel
+
+mod1 <- lm(log(exps_npo) ~ treatment*tpost_D*log(CONT) + 
+             as.factor(year) + as.factor(FIPS),
+           data = b_df_storm)
+
+mod2 <- lm(log(pop/NONPROFITS) ~ treatment*tpost_D*log(CONT) + 
+             as.factor(year) + as.factor(FIPS),
+           data = b_df_storm)
+
+mod3 <- lm(log(TOTREV/NONPROFITS) ~ treatment*tpost_D*log(CONT) + 
+             as.factor(year) + as.factor(FIPS),
+           data = b_df_storm)
+
+mod4 <- lm(log(TOTASS/NONPROFITS) ~ treatment*tpost_D*log(CONT) + 
+             as.factor(year) + as.factor(FIPS),
+           data = b_df_storm)
+
+mod5 <- lm(log(CONT/NONPROFITS) ~ treatment*tpost_D*log(CONT) + 
+             as.factor(year) + as.factor(FIPS),
+           data = b_df_storm)
+
+mod6 <- lm(cont_rev ~ treatment*tpost_D*log(CONT) + 
+             as.factor(year) + as.factor(FIPS),
+           data = b_df_storm)
+
+my_models = list(mod1, mod2, mod3, mod4, mod5, mod6)
+my_SE <- lapply(my_models, do_the_SE)
+
+
+stargazer(mod1, mod2, mod3, mod4, mod5, mod6,
+          title = "Hurricane Ike, Scaled with Log Contributions---Balanced Panel",
+          omit = c("factor","Constant"),
+          se = my_SE,
+          type = "latex",
+          order = c(
+            "treatment:tpost_D:log(CONT)",
+            "treatment:tpost_D",
+            "treatment:log(CONT)",
+            "tpost_D:log(CONT)",
+            "treatment",
+            "tpost_D",
+            "log(CONT)"
+          ),
+          font.size = 'footnotesize',
+          covariate.labels = c(
+            "Disaster * Post Storm * Log Cont.",
+            "Disaster * Post Storm",
+            "Disaster * Log Cont.",
+            "Post Storm *  Log Cont.",
+            "Disaster",
+            "Post Storm",
+            "Log Cont."
+          ),
+          dep.var.labels = c(
+            "Productivity",
+            "Concentration",
+            "Incomes",
+            "Wealth",
+            "Resource Use",
+            "Resource Dependence"
+          ),
+          omit.stat = c("rsq", "adj.rsq"), 
+          out = 'Results/regression_results3.tex')
+
+rm(mod1, mod2, mod3, mod4, mod5, mod6, my_models, my_SE)
+
+
+#:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+
+#:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+### Third Set of Regressions ---------------------------------------------------
+#:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+mod1 <- lm(log(exps_npo) ~ treatment*tpost_D*cont_dich + 
+              as.factor(year) + as.factor(FIPS),
+            data = df_storm)
+
+mod2 <- lm(log(pop/NONPROFITS) ~ treatment*tpost_D*cont_dich + 
+             as.factor(year) + as.factor(FIPS),
+           data = df_storm)
+
+mod3 <- lm(log(TOTREV/NONPROFITS) ~ treatment*tpost_D*cont_dich + 
+             as.factor(year) + as.factor(FIPS),
+           data = df_storm)
+
+mod4 <- lm(log(TOTASS/NONPROFITS) ~ treatment*tpost_D*cont_dich + 
+             as.factor(year) + as.factor(FIPS),
+           data = df_storm)
+
+mod5 <- lm(log(CONT/NONPROFITS) ~ treatment*tpost_D*cont_dich + 
+             as.factor(year) + as.factor(FIPS),
+           data = df_storm)
+
+mod6 <- lm(cont_rev ~ treatment*tpost_D*cont_dich + 
+             as.factor(year) + as.factor(FIPS),
+           data = df_storm)
+
+my_models = list(mod1, mod2, mod3, mod4, mod5, mod6)
+my_SE <- lapply(my_models, do_the_SE)
+
+
+stargazer(mod1, mod2, mod3, mod4, mod5, mod6,
+          title = "Hurricane Ike, Dichotomized Contributions---Unbalanced Panel",
+          omit = c("factor","Constant"),
+          se = my_SE,
+          type = "latex",
+          order = c(
+            "treatment:tpost_D:cont_dich",
+            "treatment:tpost_D",
+            "treatment:cont_dich",
+            "tpost_D:cont_dich",
+            "treatment",
+            "tpost_D",
+            "cont_dich"
+            ),
+          font.size = 'footnotesize',
+          covariate.labels = c(
+            "Disaster * Post Storm * Top Cont.",
+            "Disaster * Post Storm",
+            "Disaster * Top Cont.",
+            "Post Storm *  Top Cont.",
+            "Disaster",
+            "Post Storm",
+            "Top Cont."
+          ),
+          dep.var.labels = c(
+            "Productivity",
+            "Concentration",
+            "Incomes",
+            "Wealth",
+            "Resource Use",
+            "Resource Dependence"
+          ),
+          omit.stat = c("rsq", "adj.rsq"), 
+          out = 'Results/regression_results4.tex')
+
+rm(mod1, mod2, mod3, mod4, mod5, mod6, my_models, my_SE)
+
+rm(b_df_storm, df_storm)
 
 #:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
