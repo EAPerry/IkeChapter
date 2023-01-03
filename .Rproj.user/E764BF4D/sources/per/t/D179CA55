@@ -3,7 +3,7 @@
     "path": "C:/Users/eaper/CoeRA/IkeChapter/Code/MAIN.R",
     "project_path": "Code/MAIN.R",
     "type": "r_source",
-    "hash": "4281612884",
+    "hash": "3877458509",
     "contents": "",
     "dirty": false,
     "created": 1671410614858.0,
@@ -12,17 +12,17 @@
     "properties": {
         "source_window_id": "",
         "Source": "Source",
-        "cursorPosition": "65,2",
-        "scrollLine": "24",
+        "cursorPosition": "2434,0",
+        "scrollLine": "2407",
         "docOutlineVisible": "0",
         "docOutlineSize": "231"
     },
     "folds": "",
-    "lastKnownWriteTime": 1671832446,
+    "lastKnownWriteTime": 1672760275,
     "encoding": "ISO8859-1",
     "collab_server": "",
     "source_window": "",
-    "last_content_update": 1671832446769,
+    "last_content_update": 1672760275056,
     "read_only": false,
     "read_only_alternatives": []
 }
