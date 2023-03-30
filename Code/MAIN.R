@@ -3,7 +3,7 @@
 #:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 # 
 # Contributor(s): Brenna Jungers, Evan Perry, Drew Westberg
-# Last Revised: 2022-12-27
+# Last Revised: 2023-03-30
 # 
 # Purpose: The purpose of this script is to clean, organize, and summarize key 
 # data related to the impact of natural disasters on local charitable giving. 
@@ -14,17 +14,8 @@
 # 
 # Input files: 
 # 
-# co_fy_trends.parquet : NCCS trend data on individual nonprofits; contains
-#     records for the nonprofits in the "other" category. (Not on GitHub---too 
-#     large)
-# 
-# pc_fy_trends.parquet : NCCS trend data on individual nonprofits; contains
-#     records for public charities.(Not on GitHub---too large)
-# 
-# pf_fy_trends.parquet : NCCS trend data on individual nonprofits; contains
-#     records for private foundations. (Not on GitHub---too large)
-# 
-# nccs.csv : Consolidated data from NCCS. (On GitHub)
+# nccs.csv : Consolidated data from NCCS. Raw data from NCCS is too large to 
+#     upload to GitHub, so this is the consolidated data. 
 # 
 # 2020_Planning_Data.csv : County-level census data from the 2010 decennial
 #     Census and the 2014 American Community Survey. Use selected variables for
@@ -53,11 +44,9 @@
 #
 # summary_stats.tex : Descriptive statistics table.
 #
-# regression_results1.tex : Regression results for the first regression table.
-#
-# regression_results2.tex : Regression results for the second regression table.
-# 
+# All the LaTeX tables in the Results/Regression Tables subdirectory.
 # All the figures in the Results/Figures subdirectory.
+# All the figures in the Results/Robustness Checks subdirectory.
 # 
 # Outline: (Crtl + Shift + O in RStudio) 
 #   1. Code to Change When Replicating
@@ -65,6 +54,7 @@
 #   3. Reading and Processing Data
 #   4. Data Summary & Visualization
 #   5. Analysis
+#   6. Placebo Tests
 #
 #:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
@@ -459,7 +449,7 @@ main_df <- merge(main_df, pop, by="co_year", all.x=T)
 main_df <- merge(main_df, hurricanes, by="FIPS", all.y=T)
 
 # Remove the extra dataframes
-rm(census, hurricanes, nccs, pop, state_fips, storms)
+rm(census, hurricanes, nccs, pop, storms)
 
 #:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
@@ -473,25 +463,33 @@ rm(census, hurricanes, nccs, pop, state_fips, storms)
 
 main_df <- main_df %>% 
   mutate(
-    # Nonprofits
-    npo_capita = NONPROFITS/pop,
-    npo_area = NONPROFITS/LAND_AREA,
-    # Contributions
-    cont_capita = CONT/pop,
-    cont_area = CONT/LAND_AREA,
-    cont_npo = CONT/NONPROFITS,
-    # Expenses
-    exps_capita = EXPS/pop,
-    exps_area = EXPS/LAND_AREA,
-    exps_npo = EXPS/NONPROFITS,
-    # Assets
-    ass_capita = TOTASS/pop,
-    ass_area = TOTASS/LAND_AREA,
-    ass_npo = TOTASS/NONPROFITS,
-    # Revenues
-    revs_capita = TOTREV/pop,
-    revs_area = TOTREV/LAND_AREA,
-    rev_npo = TOTREV/NONPROFITS
+    # # Nonprofits
+    # npo_capita = NONPROFITS/pop,
+    # npo_area = NONPROFITS/LAND_AREA,
+    # # Contributions
+    # cont_capita = CONT/pop,
+    # cont_area = CONT/LAND_AREA,
+    # cont_npo = CONT/NONPROFITS,
+    # # Expenses
+    # exps_capita = EXPS/pop,
+    # exps_area = EXPS/LAND_AREA,
+    # exps_npo = EXPS/NONPROFITS,
+    # # Assets
+    # ass_capita = TOTASS/pop,
+    # ass_area = TOTASS/LAND_AREA,
+    # ass_npo = TOTASS/NONPROFITS,
+    # # Revenues
+    # revs_capita = TOTREV/pop,
+    # revs_area = TOTREV/LAND_AREA,
+    # rev_npo = TOTREV/NONPROFITS,
+    # Outcome Variables
+    density = NONPROFITS/pop,
+    concentration = concentration,
+    wealth = TOTASS/NONPROFITS,
+    distribution = DIST,
+    output = EXPS/pop,
+    use = CONT/NONPROFITS,
+    dependence = CONT/TOTREV * 100
   ) %>% 
   rename(
     year = FISYR
@@ -507,35 +505,22 @@ my_order <- c(
   "hit_year",
   "treatment",
   "NONPROFITS",
-  "CONT",  
-  "EXPS",       
+  "CONT",
+  "EXPS",
   "GRPROF",
-  "INVINC",    
+  "INVINC",
   "OTHINC",
   "TOTREV",
   "TOTASS",
   "LAND_AREA",
   "pop",
-  "npo_capita",
-  "npo_area",
-  "cont_capita",
-  "cont_area",
-  "cont_npo", 
-  "exps_capita",
-  "exps_area",
-  "exps_npo",
-  "ass_capita",
-  "ass_area",
-  "ass_npo",
-  "revs_capita",
-  "revs_area",
-  "rev_npo", 
-  "HHI_CONT",
-  "HHI_EXPS",    
-  "HHI_GRPROF",  
-  "HHI_INVINC", 
-  "HHI_REV",     
-  "HHI_ASS" 
+  "density",
+  "concentration",
+  "wealth",
+  "distribution",
+  "output",
+  "use",
+  "dependence"
 )
 
 # Order up
@@ -568,15 +553,73 @@ main_df <- main_df %>%
   )
 
 main_df <- main_df %>% 
-  mutate(cont_rev = CONT/TOTREV *100) %>% 
   filter(
     CONT > 0,
     EXPS > 0,
     TOTREV > 0,
-    TOTASS > 0,
-    cont_rev < 100
+    TOTASS > 0, 
+    distribution < 5000,
+    distribution > 0,
+    wealth > 0,
+    dependence < 100
   )
 
+#:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+### The Lolipop Plot -----------------------------------------------------------
+#:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+temp <- main_df %>% 
+  filter(treatment == 1) %>% 
+  filter(year == 2007 | year == 2009) %>% 
+  group_by(year) %>% 
+  summarise(
+    density = mean(density),
+    concentration = mean(concentration),
+    wealth = mean(wealth),
+    distribution = mean(distribution),
+    output = mean(output),
+    use = mean(use),
+    dependence = mean(dependence)
+  )
+
+temp <- as.data.frame(t(temp))
+temp$variable <- rownames(temp)
+colnames(temp) <- c("pre","post","variable")
+temp <- temp[temp$variable != "year",]
+
+# Rescale the variables
+temp <- temp %>% 
+  mutate(
+    post = (post - pre)/pre,
+    pre = 0
+  )
+
+l <- c("dependence", "use", "output", "distribution", "wealth", 
+       "concentration", "density")
+
+temp$variable <- factor(temp$variable, levels= l)
+
+png("Results/Figures/lineplot.png", width=6, height = 4, units="in",
+    res=600)
+ggplot(temp, aes(x = post, y =  variable)) +
+  geom_segment( aes(x=pre ,xend=post, y=variable, yend=variable), color="grey", 
+                lwd = 1) +
+  geom_vline(xintercept = 0) +
+  geom_point(size=5, color= natparks.pals("Yellowstone", 1, type = "discrete")) +
+  scale_y_discrete(labels = str_to_title(l)) + 
+  scale_x_continuous(labels = scales::percent) + 
+  theme_bw() +
+  theme(
+    panel.grid.minor.y = element_blank(),
+    panel.grid.major.y = element_blank(),
+    axis.text.y = element_text(face="bold"),
+    axis.title.y = element_blank()
+  ) + 
+  xlab("\n% Change 2007 to 2009, Impacted Counties")
+dev.off()
+
+
+#:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
 #:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 ### Mapping the Geographic Sample ----------------------------------------------
@@ -614,27 +657,16 @@ county_shp <- county_shp %>%
 
 # Temporary availability file
 temp <- main_df %>% 
-  mutate(
-    productivity = EXPS/NONPROFITS,
-    concentration = pop/NONPROFITS,
-    incomes = TOTREV/NONPROFITS,
-    wealth = TOTASS/NONPROFITS,
-    use = CONT/NONPROFITS,
-    dependence = CONT/TOTREV,
-    CONT = CONT,
-    EXPS = EXPS,
-    TOTREV = TOTREV,
-    TOTASS = TOTASS
-  ) %>% 
   group_by(FIPS) %>% 
   summarise(
     treatment = max(treatment),
     years_in_sample = n(),
     population = mean(pop),
-    productivity = mean(productivity),
+    density = mean(density),
     concentration = mean(concentration),
-    incomes = mean(incomes),
     wealth = mean(wealth),
+    distribution = mean(distribution),
+    output = mean(output),
     use = mean(use),
     dependence = mean(dependence),
     CONT = mean(CONT),
@@ -675,99 +707,7 @@ tm_shape(county_shp) +
   tm_layout(frame = FALSE)
 dev.off()
 
-rm(county_shp, dist, fema, hurricanes, temp, counties_250, my_states)
-
-# Make Interactive Maps?
-
-# tmap_mode("view")
-# 
-# `Treatment Status` <- county_shp
-# `Years in Sample` <- county_shp
-# `Population` <- county_shp
-# `Productivity` <- county_shp
-# `Concentration` <- county_shp
-# `Incomes` <- county_shp
-# `Wealth` <- county_shp
-# `Resource Use` <- county_shp
-# `Resource Dependence` <- county_shp
-# `Contributions` <- county_shp
-# `Expenses` <- county_shp
-# `Revenues` <- county_shp
-# `Assests` <- county_shp
-# 
-# 
-# tm_shape(`Treatment Status`) +
-#   tm_polygons(
-#     "treatment",
-#     border.col = "white",
-#     title = "Treatment Status",
-#     palette = rev(natparks.pals("Yellowstone", 2, type="discrete"))) + 
-#   tm_shape(`Years in Sample`) +
-#   tm_polygons(
-#     "years_in_sample",
-#     border.col = "white",
-#     title = "# of Years in Sample",
-#     style = "pretty",
-#     as.count=T,
-#     palette = natparks.pals("Denali", 6, type="discrete")) +
-#   tm_shape(`Population`) +
-#   tm_polygons(
-#     "population",
-#     border.col = "white",
-#     title = "Population",
-#     style = "log10",
-#     palette = rev(natparks.pals("Denali", 6, type="discrete"))) + 
-#   tm_shape(`Contributions`) +
-#   tm_polygons(
-#     "CONT",
-#     border.col = "white",
-#     title = "Contributions",
-#     style = "log10",
-#     palette = rev(natparks.pals("Denali", 6, type="discrete"))) + 
-#   tm_shape(`Productivity`) +
-#   tm_polygons(
-#     "productivity",
-#     border.col = "white",
-#     title = "Productivity",
-#     style = "log10",
-#     palette = rev(natparks.pals("Denali", 6, type="discrete"))) + 
-#   tm_shape(`Concentration`) +
-#   tm_polygons(
-#     "concentration",
-#     border.col = "white",
-#     title = "Concentration",
-#     style = "cont",
-#     palette = rev(natparks.pals("Denali", 6, type="discrete"))) + 
-#   tm_shape(`Incomes`) +
-#   tm_polygons(
-#     "incomes",
-#     border.col = "white",
-#     title = "Incomes",
-#     style = "log10",
-#     palette = rev(natparks.pals("Denali", 6, type="discrete"))) + 
-#   tm_shape(`Wealth`) +
-#   tm_polygons(
-#     "wealth",
-#     border.col = "white",
-#     title = "Wealth",
-#     style = "log10",
-#     palette = rev(natparks.pals("Denali", 6, type="discrete"))) + 
-#   tm_shape(`Resource Use`) +
-#   tm_polygons(
-#     "use",
-#     border.col = "white",
-#     title = "Resource Use",
-#     style = "log10",
-#     palette = rev(natparks.pals("Denali", 6, type="discrete"))) + 
-#   tm_shape(`Resource Dependence`) +
-#   tm_polygons(
-#     "dependence",
-#     border.col = "white",
-#     title = "Resource Dependence",
-#     style = "cont",
-#     palette = rev(natparks.pals("Denali", 6, type="discrete")))
-
-rm(list=setdiff(ls(), "main_df"))
+rm(county_shp, dist, fema, hurricanes, temp, counties_250, my_states, l)
 
 #:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
@@ -782,23 +722,21 @@ summ_df <- main_df %>%
     EXPS = EXPS/1000000,
     TOTREV = TOTREV/1000000,
     TOTASS = TOTASS/1000000,
-    productivity = EXPS/NONPROFITS,
-    concentration = pop/NONPROFITS,
-    incomes = TOTREV/NONPROFITS,
-    wealth = TOTASS/NONPROFITS,
-    use = CONT/NONPROFITS,
-    dependence = CONT/TOTREV
+    density = density * 1000,
+    concentration = concentration * 100,
+    wealth = wealth / 1000000,
+    use = use/1000
   )
 
 summ_df <- data.frame(
   summ_df[
     c("pop", "LAND_AREA", 
       "NONPROFITS", "TOTASS", "CONT", "EXPS", "TOTREV",  
-      "productivity", "concentration", "incomes", "wealth", "use", "dependence"   
-      )
+      "density", "concentration", "wealth", "distribution", "output", "use", 
+      "dependence"
+    )
   ]
 )
-
 
 stargazer(summ_df, 
           summary = TRUE, 
@@ -806,7 +744,7 @@ stargazer(summ_df,
             "mean", "median", "sd", "min", "max"
           ),
           digits = 2,
-          notes = "Unbalanced panel; N = 7,600; T = 14; C = 555",
+          notes = "Unbalanced panel; N = 7,745; T = 14; C = 566",
           style = "aer",
           covariate.labels = c(
             "\\quad Population",
@@ -816,15 +754,16 @@ stargazer(summ_df,
             "\\quad Contributions (millions USD)",
             "\\quad Expenses (millions USD)",
             "\\quad Revenues (millions USD)",
-            "\\quad Productivity (Expenses/Nonprofit)",
-            "\\quad Concentration (Population/Nonprofit)",
-            "\\quad Incomes (Revenue/Nonprofit)",
-            "\\quad Wealth (Assets/Nonprofit)",
-            "\\quad Resource Use (Contributions/Nonprofit)",
-            "\\quad Resource Dependence (Contributions/Revenue)"
+            "\\quad Density",
+            "\\quad Concentration",
+            "\\quad Wealth (millions USD)",
+            "\\quad Distribution",
+            "\\quad Output (USD)",
+            "\\quad Resource Use (thousands USD)",
+            "\\quad Resource Dependence"
           ),
           out = "Results/summary_stats.tex"
-          )
+)
 
 rm(summ_df)
 
@@ -864,7 +803,7 @@ ggplot(conts, aes(x=mean_pop, y=mean_cont/1000000)) +
   theme_bw()
 dev.off()
 
-rm(conts)
+rm(conts, coef_of_interest)
 
 #:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
@@ -911,29 +850,29 @@ ike_did <- main_df %>%
 ike_did <- ike_did %>% 
   group_by(treatment, year) %>% 
   summarize(
-    total_weights = sum(id_year_weight),
-    productivity = sum(id_year_weight *log(exps_npo)),
-    concentration = sum(id_year_weight *log(pop/NONPROFITS)),
-    incomes = sum(id_year_weight *log(TOTREV/NONPROFITS)),
-    wealth = sum(id_year_weight *log(TOTASS/NONPROFITS)),
-    use = sum(id_year_weight *log(CONT/NONPROFITS)),
-    dependence = sum(id_year_weight *log(CONT/TOTREV))
+    density = sum(id_year_weight * density),
+    concentration = sum(concentration * id_year_weight),
+    wealth = sum(wealth * id_year_weight),
+    distribution = sum(distribution * id_year_weight),
+    output = sum(output * id_year_weight),
+    use = sum(use * id_year_weight),
+    dependence = sum(dependence * id_year_weight)
   )
 
 # Get the year Ike hit
 my_hityear <- max(main_df$hit_year)
 
 # Plots
-p1 <- ggplot(ike_did, aes(x=year, y=productivity, color=as.factor(treatment))) +
+p1 <- ggplot(ike_did, aes(x=year, y=log(density), color=as.factor(treatment))) +
   geom_vline(xintercept = my_hityear) +
   geom_line(lwd = 2) +
-  labs(x="",y="Log Productivity\n") +
+  labs(x="",y="Log Density\n") +
   scale_color_manual(values = rev(natparks.pals("Yellowstone", 2)),
                      labels=c("Control","Treatment")) +
   theme_bw() +
   theme(legend.title = element_blank(), text = element_text(size = 9))
 
-p2 <- ggplot(ike_did, aes(x=year, y=concentration, color=as.factor(treatment))) +
+p2 <- ggplot(ike_did, aes(x=year, y=log(concentration), color=as.factor(treatment))) +
   geom_vline(xintercept = my_hityear) +
   geom_line(lwd = 2) +
   labs(x="",y="Log Concentration\n") +
@@ -943,26 +882,35 @@ p2 <- ggplot(ike_did, aes(x=year, y=concentration, color=as.factor(treatment))) 
   theme(legend.title = element_blank(), text = element_text(size = 9))
 
 
-p3 <- ggplot(ike_did, aes(x=year, y=incomes, color=as.factor(treatment))) +
+p3 <- ggplot(ike_did, aes(x=year, y=log(wealth), color=as.factor(treatment))) +
   geom_vline(xintercept = my_hityear) +
   geom_line(lwd = 2) +
-  labs(x="",y="Log Incomes\n") +
+  labs(x="",y="Log Wealth\n") +
   scale_color_manual(values = rev(natparks.pals("Yellowstone", 2)),
                      labels=c("Control","Treatment")) +
   theme_bw() +
   theme(legend.title = element_blank(), text = element_text(size = 9))
 
 
-p4 <- ggplot(ike_did, aes(x=year, y=wealth, color=as.factor(treatment))) +
+p4 <- ggplot(ike_did, aes(x=year, y=log(distribution), color=as.factor(treatment))) +
   geom_vline(xintercept = my_hityear) +
   geom_line(lwd = 2) +
-  labs(x="\nYear",y="Log Wealth\n") +
+  labs(x="\nYear",y="Log Distribution\n") +
   scale_color_manual(values = rev(natparks.pals("Yellowstone", 2)),
                      labels=c("Control","Treatment")) +
   theme_bw() +
   theme(legend.title = element_blank(), text = element_text(size = 9))
 
-p5 <- ggplot(ike_did, aes(x=year, y=use, color=as.factor(treatment))) +
+p5 <- ggplot(ike_did, aes(x=year, y=log(output), color=as.factor(treatment))) +
+  geom_vline(xintercept = my_hityear) +
+  geom_line(lwd = 2) +
+  labs(x="\nYear",y="Log Output\n") +
+  scale_color_manual(values = rev(natparks.pals("Yellowstone", 2)),
+                     labels=c("Control","Treatment")) +
+  theme_bw() +
+  theme(legend.title = element_blank(), text = element_text(size = 9))
+
+p6 <- ggplot(ike_did, aes(x=year, y=log(use), color=as.factor(treatment))) +
   geom_vline(xintercept = my_hityear) +
   geom_line(lwd = 2) +
   labs(x="\nYear",y="Log Resource Use\n") +
@@ -971,38 +919,38 @@ p5 <- ggplot(ike_did, aes(x=year, y=use, color=as.factor(treatment))) +
   theme_bw() +
   theme(legend.title = element_blank(), text = element_text(size = 9))
 
-p6 <- ggplot(ike_did, aes(x=year, y=dependence, color=as.factor(treatment))) +
+p7 <- ggplot(ike_did, aes(x=year, y=dependence, color=as.factor(treatment))) +
   geom_vline(xintercept = my_hityear) +
   geom_line(lwd = 2) +
-  labs(x="\nYear",y="Log Resource Dependence\n") +
+  labs(x="\nYear",y="Resource Dependence\n") +
   scale_color_manual(values = rev(natparks.pals("Yellowstone", 2)),
                      labels=c("Control","Treatment")) +
   theme_bw() +
   theme(legend.title = element_blank(), text = element_text(size = 9))
 
-png("Results/Figures/DiD_pop_weighted.png", width=8, height=6, 
+png("Results/Figures/DiD_pop_weighted.png", width=8, height=8, 
     units="in", res=450)
 print({
   ggarrange(
-    p1, p2, p3, p4, p5, p6,
-    ncol = 3, nrow = 2,
-    labels = c("A","B","C","D","E","F"),
+    p1, p2, p3, p4, p5, p6, p7,
+    ncol = 3, nrow = 3,
+    labels = c("a","b","c","d","e","f", "g"),
     common.legend = TRUE, legend = "bottom")
 })
 dev.off()
 
 ike_did <- ike_did %>% 
-  pivot_wider(names_from = treatment, values_from = 4:9)
+  pivot_wider(names_from = treatment, values_from = 3:9)
 
 # Plots
-p1 <- ggplot(ike_did, aes(x=year, y=productivity_1 - productivity_0)) +
+p1 <- ggplot(ike_did, aes(x=year, y=log(density_1) - log(density_0))) +
   geom_vline(xintercept = my_hityear) +
   geom_line(lwd = 2, color = natparks.pals("Yellowstone", 1)) +
-  labs(x="",y="Log Productivity\n") + 
+  labs(x="",y="Log Density\n") + 
   theme_bw() +
   theme(text = element_text(size = 9))
 
-p2 <- ggplot(ike_did, aes(x=year, y=concentration_1 - concentration_0)) +
+p2 <- ggplot(ike_did, aes(x=year, y=log(concentration_1) - log(concentration_0))) +
   geom_vline(xintercept = my_hityear) +
   geom_line(lwd = 2, color = natparks.pals("Yellowstone", 1)) +
   labs(x="",y="Log Concentration\n") + 
@@ -1010,47 +958,54 @@ p2 <- ggplot(ike_did, aes(x=year, y=concentration_1 - concentration_0)) +
   theme(text = element_text(size = 9))
 
 
-p3 <- ggplot(ike_did, aes(x=year, y=incomes_1 - incomes_0)) +
+p3 <- ggplot(ike_did, aes(x=year, y=log(wealth_1) - log(wealth_0))) +
   geom_vline(xintercept = my_hityear) +
   geom_line(lwd = 2, color = natparks.pals("Yellowstone", 1)) +
-  labs(x="",y="Log Incomes\n") + 
+  labs(x="",y="Log Wealth\n") + 
   theme_bw() +
   theme(text = element_text(size = 9))
 
 
-p4 <- ggplot(ike_did, aes(x=year, y=wealth_1 - wealth_0)) +
+p4 <- ggplot(ike_did, aes(x=year, y=log(distribution_1) - log(distribution_0))) +
   geom_vline(xintercept = my_hityear) +
   geom_line(lwd = 2, color = natparks.pals("Yellowstone", 1)) +
-  labs(x="\nYear",y="Log Wealth\n") + 
+  labs(x="\nYear",y="Log Distribution\n") + 
   theme_bw() +
   theme(text = element_text(size = 9))
 
-p5 <- ggplot(ike_did, aes(x=year, y = use_1 - use_0)) +
+p5 <- ggplot(ike_did, aes(x=year, y = log(output_1) - log(output_0))) +
+  geom_vline(xintercept = my_hityear) +
+  geom_line(lwd = 2, color = natparks.pals("Yellowstone", 1)) +
+  labs(x="\nYear",y="Log Output\n") + 
+  theme_bw() +
+  theme(text = element_text(size = 9))
+
+p6 <- ggplot(ike_did, aes(x=year, y = log(use_1) - log(use_0) )) +
   geom_vline(xintercept = my_hityear) +
   geom_line(lwd = 2, color = natparks.pals("Yellowstone", 1)) +
   labs(x="\nYear",y="Log Resource Use\n") + 
   theme_bw() +
   theme(text = element_text(size = 9))
 
-p6 <- ggplot(ike_did, aes(x=year, y = dependence_1 -dependence_0)) +
+p7 <- ggplot(ike_did, aes(x=year, y =  dependence_1 - dependence_0 )) +
   geom_vline(xintercept = my_hityear) +
   geom_line(lwd = 2, color = natparks.pals("Yellowstone", 1)) +
-  labs(x="\nYear",y="Log Resource Dependence\n") + 
+  labs(x="\nYear",y="Resource Dependence\n") + 
   theme_bw() +
   theme(text = element_text(size = 9))
 
-png("Results/Figures/differenced_pop_weighted.png", width=8, height=6, 
+png("Results/Figures/differenced_pop_weighted.png", width=8, height=8, 
     units="in", res=450)
 print({
   ggarrange(
-    p1, p2, p3, p4, p5, p6,
-    ncol = 3, nrow = 2,
-    labels = c("A","B","C","D","E","F"),
+    p1, p2, p3, p4, p5, p6, p7, 
+    ncol = 3, nrow = 3,
+    labels = c("a","b","c","d","e","f"),
     common.legend = TRUE, legend = "bottom")
 })
 dev.off()
 
-rm(ike_did, p1, p2, p3, p4, p5, p6, my_hityear)
+rm(ike_did, p1, p2, p3, p4, p5, p6, p7, my_hityear)
 
 #:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
@@ -1087,34 +1042,38 @@ do_the_SE <- function(model){
 
 regressions_1 <- function (my_df, table_description, table_output){
   
-  mod1 <- lm(log(exps_npo) ~ treatment*tpost_D + 
+  mod1 <- lm(log(density) ~ treatment*tpost_D + 
                as.factor(year) + as.factor(FIPS),
              data = my_df)
   
-  mod2 <- lm(log(pop/NONPROFITS) ~ treatment*tpost_D + 
+  mod2 <- lm(log(concentration) ~ treatment*tpost_D + 
                as.factor(year) + as.factor(FIPS),
              data = my_df)
   
-  mod3 <- lm(log(TOTREV/NONPROFITS) ~ treatment*tpost_D + 
+  mod3 <- lm(log(wealth) ~ treatment*tpost_D + 
                as.factor(year) + as.factor(FIPS),
              data = my_df)
   
-  mod4 <- lm(log(TOTASS/NONPROFITS) ~ treatment*tpost_D + 
+  mod4 <- lm(log(distribution) ~ treatment*tpost_D + 
                as.factor(year) + as.factor(FIPS),
              data = my_df)
   
-  mod5 <- lm(log(CONT/NONPROFITS) ~ treatment*tpost_D + 
+  mod5 <- lm(log(output) ~ treatment*tpost_D + 
                as.factor(year) + as.factor(FIPS),
              data = my_df)
   
-  mod6 <- lm(cont_rev ~ treatment*tpost_D + 
+  mod6 <- lm(log(use) ~ treatment*tpost_D + 
                as.factor(year) + as.factor(FIPS),
              data = my_df)
   
-  my_models = list(mod1, mod2, mod3, mod4, mod5, mod6)
+  mod7 <- lm(log(dependence) ~ treatment*tpost_D + 
+               as.factor(year) + as.factor(FIPS),
+             data = my_df)
+  
+  my_models = list(mod1, mod2, mod3, mod4, mod5, mod6, mod7)
   my_SE <- lapply(my_models, do_the_SE)
   
-  stargazer(mod1, mod2, mod3, mod4, mod5, mod6,
+  stargazer(mod1, mod2, mod3, mod4, mod5, mod6, mod7,
             title = paste("Hurricane Ike, Canonical DiD---", table_description),
             omit = c("factor","Constant"),
             se = my_SE,
@@ -1131,26 +1090,28 @@ regressions_1 <- function (my_df, table_description, table_output){
               "Post Storm"
             ),
             dep.var.labels = c(
-              "Productivity",
+              "Density",
               "Concentration",
-              "Incomes",
               "Wealth",
-              "Resource Use",
-              "Resource Dependence"
+              "Distribution",
+              "Output",
+              "Use",
+              "Dependence"
             ),
             omit.stat = c("rsq", "adj.rsq"), 
             out = paste("Results/Regression Tables/", table_output, sep=""))
   
   # Main Coefficient Reporting dataframe
-  model_num <- rep("Model 1", 6)
-  panel_type <- rep(table_description, 6)
+  model_num <- rep("Model 1", 7)
+  panel_type <- rep(table_description, 7)
   outcome <- c(
-    "Productivity",
+    "Density",
     "Concentration",
-    "Incomes",
     "Wealth",
-    "Resource Use",
-    "Resource Dependence"
+    "Distribution",
+    "Output",
+    "Use",
+    "Dependence"
   )
   
   main_coefs <- c(
@@ -1159,7 +1120,8 @@ regressions_1 <- function (my_df, table_description, table_output){
     mod3$coefficients["treatment:tpost_D"],
     mod4$coefficients["treatment:tpost_D"],
     mod5$coefficients["treatment:tpost_D"],
-    mod6$coefficients["treatment:tpost_D"]
+    mod6$coefficients["treatment:tpost_D"],
+    mod7$coefficients["treatment:tpost_D"]
   )
   
   term_names <- data.frame(summary(mod1)$aliased)
@@ -1179,7 +1141,7 @@ regressions_1 <- function (my_df, table_description, table_output){
     )
   
   return(out_df)
-
+  
 }
 
 mod1a_coefs <- regressions_1(df_storm, "Unbalanced", "reg1_unbalanced.tex")
@@ -1194,35 +1156,39 @@ mod1b_coefs <- regressions_1(b_df_storm, "Balanced", "reg1_balanced.tex")
 
 regressions_2 <- function (my_df, table_description, table_output){
   
-  mod1 <- lm(log(exps_npo) ~ treatment*tpost_D*log(CONT) + 
+  mod1 <- lm(log(density) ~ treatment*tpost_D*log(CONT) + 
                as.factor(year) + as.factor(FIPS),
              data = my_df)
   
-  mod2 <- lm(log(pop/NONPROFITS) ~ treatment*tpost_D*log(CONT) + 
+  mod2 <- lm(log(concentration) ~ treatment*tpost_D*log(CONT) + 
                as.factor(year) + as.factor(FIPS),
              data = my_df)
   
-  mod3 <- lm(log(TOTREV/NONPROFITS) ~ treatment*tpost_D*log(CONT) + 
+  mod3 <- lm(log(wealth) ~ treatment*tpost_D*log(CONT) + 
                as.factor(year) + as.factor(FIPS),
              data = my_df)
   
-  mod4 <- lm(log(TOTASS/NONPROFITS) ~ treatment*tpost_D*log(CONT) + 
+  mod4 <- lm(log(distribution) ~ treatment*tpost_D*log(CONT) + 
                as.factor(year) + as.factor(FIPS),
              data = my_df)
   
-  mod5 <- lm(log(CONT/NONPROFITS) ~ treatment*tpost_D*log(CONT) + 
+  mod5 <- lm(log(output) ~ treatment*tpost_D*log(CONT) + 
                as.factor(year) + as.factor(FIPS),
              data = my_df)
   
-  mod6 <- lm(cont_rev ~ treatment*tpost_D*log(CONT) + 
+  mod6 <- lm(log(use) ~ treatment*tpost_D*log(CONT) + 
                as.factor(year) + as.factor(FIPS),
              data = my_df)
   
-  my_models = list(mod1, mod2, mod3, mod4, mod5, mod6)
+  mod7 <- lm(dependence ~ treatment*tpost_D*log(CONT) + 
+               as.factor(year) + as.factor(FIPS),
+             data = my_df)
+  
+  my_models = list(mod1, mod2, mod3, mod4, mod5, mod6, mod7)
   my_SE <- lapply(my_models, do_the_SE)
   
   
-  stargazer(mod1, mod2, mod3, mod4, mod5, mod6,
+  stargazer(mod1, mod2, mod3, mod4, mod5, mod6, mod7, 
             title = paste("Hurricane Ike, Scaled with Log Contributions---", 
                           table_description, sep=""),
             omit = c("factor","Constant"),
@@ -1248,26 +1214,28 @@ regressions_2 <- function (my_df, table_description, table_output){
               "Log Cont."
             ),
             dep.var.labels = c(
-              "Productivity",
+              "Density",
               "Concentration",
-              "Incomes",
               "Wealth",
-              "Resource Use",
-              "Resource Dependence"
+              "Distribution",
+              "Output",
+              "Use",
+              "Dependence"
             ),
             omit.stat = c("rsq", "adj.rsq"), 
             out = paste("Results/Regression Tables/", table_output, sep = ""))
   
   # Main Coefficient Reporting dataframe
-  model_num <- rep("Model 2", 6)
-  panel_type <- rep(table_description, 6)
+  model_num <- rep("Model 2", 7)
+  panel_type <- rep(table_description, 7)
   outcome <- c(
-    "Productivity",
+    "Density",
     "Concentration",
-    "Incomes",
     "Wealth",
-    "Resource Use",
-    "Resource Dependence"
+    "Distribution",
+    "Output",
+    "Use",
+    "Dependence"
   )
   
   main_coefs <- c(
@@ -1276,7 +1244,8 @@ regressions_2 <- function (my_df, table_description, table_output){
     mod3$coefficients["treatment:tpost_D:log(CONT)"],
     mod4$coefficients["treatment:tpost_D:log(CONT)"],
     mod5$coefficients["treatment:tpost_D:log(CONT)"],
-    mod6$coefficients["treatment:tpost_D:log(CONT)"]
+    mod6$coefficients["treatment:tpost_D:log(CONT)"],
+    mod7$coefficients["treatment:tpost_D:log(CONT)"]
   )
   
   term_names <- data.frame(summary(mod1)$aliased)
@@ -1298,7 +1267,7 @@ regressions_2 <- function (my_df, table_description, table_output){
   return(out_df)
   
 }
-  
+
 mod2a_coefs <- regressions_2(df_storm, "Unbalanced", "reg2_unbalanced.tex")
 mod2b_coefs <-regressions_2(b_df_storm, "Balanced", "reg2_balanced.tex")
 
@@ -1310,7 +1279,7 @@ mod2b_coefs <-regressions_2(b_df_storm, "Balanced", "reg2_balanced.tex")
 #:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
 regressions_3 <- function (my_df, table_description, table_output, my_cutoff){
-
+  
   # Dichotomize the contributions
   my_df <- my_df %>% 
     group_by(year, treatment) %>% 
@@ -1319,35 +1288,39 @@ regressions_3 <- function (my_df, table_description, table_output, my_cutoff){
     ) %>% 
     ungroup
   
-  mod1 <- lm(log(exps_npo) ~ treatment*tpost_D*cont_dich + 
+  mod1 <- lm(log(density) ~ treatment*tpost_D*cont_dich + 
                as.factor(year) + as.factor(FIPS),
              data = my_df)
   
-  mod2 <- lm(log(pop/NONPROFITS) ~ treatment*tpost_D*cont_dich + 
+  mod2 <- lm(log(concentration) ~ treatment*tpost_D*cont_dich + 
                as.factor(year) + as.factor(FIPS),
              data = my_df)
   
-  mod3 <- lm(log(TOTREV/NONPROFITS) ~ treatment*tpost_D*cont_dich + 
+  mod3 <- lm(log(wealth) ~ treatment*tpost_D*cont_dich + 
                as.factor(year) + as.factor(FIPS),
              data = my_df)
   
-  mod4 <- lm(log(TOTASS/NONPROFITS) ~ treatment*tpost_D*cont_dich + 
+  mod4 <- lm(log(distribution) ~ treatment*tpost_D*cont_dich + 
                as.factor(year) + as.factor(FIPS),
              data = my_df)
   
-  mod5 <- lm(log(CONT/NONPROFITS) ~ treatment*tpost_D*cont_dich + 
+  mod5 <- lm(log(output) ~ treatment*tpost_D*cont_dich + 
                as.factor(year) + as.factor(FIPS),
              data = my_df)
   
-  mod6 <- lm(cont_rev ~ treatment*tpost_D*cont_dich + 
+  mod6 <- lm(log(use) ~ treatment*tpost_D*cont_dich + 
                as.factor(year) + as.factor(FIPS),
              data = my_df)
   
-  my_models = list(mod1, mod2, mod3, mod4, mod5, mod6)
+  mod7 <- lm(dependence ~ treatment*tpost_D*cont_dich + 
+               as.factor(year) + as.factor(FIPS),
+             data = my_df)
+  
+  my_models = list(mod1, mod2, mod3, mod4, mod5, mod6, mod7)
   my_SE <- lapply(my_models, do_the_SE)
   
   
-  stargazer(mod1, mod2, mod3, mod4, mod5, mod6,
+  stargazer(mod1, mod2, mod3, mod4, mod5, mod6, mod7,
             title = paste("Hurricane Ike, Dichotomized Contributions---",
                           table_description, sep=""),
             omit = c("factor","Constant"),
@@ -1373,26 +1346,28 @@ regressions_3 <- function (my_df, table_description, table_output, my_cutoff){
               "Top Cont."
             ),
             dep.var.labels = c(
-              "Productivity",
+              "Density",
               "Concentration",
-              "Incomes",
               "Wealth",
-              "Resource Use",
-              "Resource Dependence"
+              "Distribution",
+              "Output",
+              "Use",
+              "Dependence"
             ),
             omit.stat = c("rsq", "adj.rsq"), 
             out = paste("Results/Regression Tables/", table_output, sep=""))
   
   # Main Coefficient Reporting dataframe
-  model_num <- rep(paste("Model 3", my_cutoff, sep=""), 6)
-  panel_type <- rep(table_description, 6)
+  model_num <- rep(paste("Model 3", my_cutoff, sep=""), 7)
+  panel_type <- rep(table_description, 7)
   outcome <- c(
-    "Productivity",
+    "Density",
     "Concentration",
-    "Incomes",
     "Wealth",
-    "Resource Use",
-    "Resource Dependence"
+    "Distribution",
+    "Output",
+    "Use",
+    "Dependence"
   )
   
   main_coefs <- c(
@@ -1401,7 +1376,8 @@ regressions_3 <- function (my_df, table_description, table_output, my_cutoff){
     mod3$coefficients["treatment:tpost_D:cont_dich"],
     mod4$coefficients["treatment:tpost_D:cont_dich"],
     mod5$coefficients["treatment:tpost_D:cont_dich"],
-    mod6$coefficients["treatment:tpost_D:cont_dich"]
+    mod6$coefficients["treatment:tpost_D:cont_dich"],
+    mod7$coefficients["treatment:tpost_D:cont_dich"]
   )
   
   term_names <- data.frame(summary(mod1)$aliased)
@@ -1421,9 +1397,9 @@ regressions_3 <- function (my_df, table_description, table_output, my_cutoff){
     )
   
   return(out_df)
-
-}
   
+}
+
 mod3a_coefs <- regressions_3(df_storm, "Unbalanced", "reg3_50_unbalanced.tex", 0.50)
 mod3b_coefs <- regressions_3(b_df_storm, "Balanced", "reg3-50_balanced.tex", 0.50)
 mod3c_coefs <- regressions_3(df_storm, "Unbalanced", "reg3-25_unbalanced.tex", 0.25)
@@ -1439,7 +1415,7 @@ mod3f_coefs <- regressions_3(b_df_storm, "Balanced", "reg3-10_balanced.tex", 0.1
 #:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
 regressions_4 <- function (my_df, table_description, table_output){
-
+  
   my_df <- my_df %>% 
     rowwise %>% 
     mutate(
@@ -1447,35 +1423,39 @@ regressions_4 <- function (my_df, table_description, table_output){
       tpost = max(year - hit_year, 0)
     )
   
-  mod1 <- lm(log(exps_npo) ~ treatment*tpost_D + treatment:tpost_D:tpost + 
+  mod1 <- lm(log(density) ~ treatment*tpost_D + treatment:tpost_D:tpost + 
                as.factor(year) + as.factor(FIPS),
              data = my_df)
   
-  mod2 <- lm(log(pop/NONPROFITS) ~ treatment*tpost_D + treatment:tpost_D:tpost + 
+  mod2 <- lm(log(concentration) ~ treatment*tpost_D + treatment:tpost_D:tpost + 
                as.factor(year) + as.factor(FIPS),
              data = my_df)
   
-  mod3 <- lm(log(TOTREV/NONPROFITS) ~ treatment*tpost_D + treatment:tpost_D:tpost + 
+  mod3 <- lm(log(wealth) ~ treatment*tpost_D + treatment:tpost_D:tpost + 
                as.factor(year) + as.factor(FIPS),
              data = my_df)
   
-  mod4 <- lm(log(TOTASS/NONPROFITS) ~ treatment*tpost_D + treatment:tpost_D:tpost + 
+  mod4 <- lm(log(distribution) ~ treatment*tpost_D + treatment:tpost_D:tpost + 
                as.factor(year) + as.factor(FIPS),
              data = my_df)
   
-  mod5 <- lm(log(CONT/NONPROFITS) ~ treatment*tpost_D + treatment:tpost_D:tpost + 
+  mod5 <- lm(log(output) ~ treatment*tpost_D + treatment:tpost_D:tpost + 
                as.factor(year) + as.factor(FIPS),
              data = my_df)
   
-  mod6 <- lm(cont_rev ~ treatment*tpost_D + treatment:tpost_D:tpost + 
+  mod6 <- lm(log(use) ~ treatment*tpost_D + treatment:tpost_D:tpost + 
                as.factor(year) + as.factor(FIPS),
              data = my_df)
   
-  my_models = list(mod1, mod2, mod3, mod4, mod5, mod6)
+  mod7 <- lm(dependence ~ treatment*tpost_D + treatment:tpost_D:tpost + 
+               as.factor(year) + as.factor(FIPS),
+             data = my_df)
+  
+  my_models = list(mod1, mod2, mod3, mod4, mod5, mod6, mod7)
   my_SE <- lapply(my_models, do_the_SE)
   
   
-  stargazer(mod1, mod2, mod3, mod4, mod5, mod6,
+  stargazer(mod1, mod2, mod3, mod4, mod5, mod6, mod7,
             title = paste("Hurricane Ike, Time Scaled---", 
                           table_description, sep=""),
             omit = c("factor","Constant"),
@@ -1495,26 +1475,28 @@ regressions_4 <- function (my_df, table_description, table_output){
               "Post Storm"
             ),
             dep.var.labels = c(
-              "Productivity",
+              "Density",
               "Concentration",
-              "Incomes",
               "Wealth",
-              "Resource Use",
-              "Resource Dependence"
+              "Distribution",
+              "Output",
+              "Use",
+              "Dependence"
             ),
             omit.stat = c("rsq", "adj.rsq"), 
             out = paste("Results/Regression Tables/", table_output, sep = ""))
   
   # Main Coefficient Reporting dataframe
-  model_num <- rep("Model 4", 6)
-  panel_type <- rep(table_description, 6)
+  model_num <- rep("Model 4", 7)
+  panel_type <- rep(table_description, 7)
   outcome <- c(
-    "Productivity",
+    "Density",
     "Concentration",
-    "Incomes",
     "Wealth",
-    "Resource Use",
-    "Resource Dependence"
+    "Distribution",
+    "Output",
+    "Use",
+    "Dependence"
   )
   
   main_coefs <- c(
@@ -1523,7 +1505,8 @@ regressions_4 <- function (my_df, table_description, table_output){
     mod3$coefficients["treatment:tpost_D:tpost"],
     mod4$coefficients["treatment:tpost_D:tpost"],
     mod5$coefficients["treatment:tpost_D:tpost"],
-    mod6$coefficients["treatment:tpost_D:tpost"]
+    mod6$coefficients["treatment:tpost_D:tpost"],
+    mod7$coefficients["treatment:tpost_D:tpost"]
   )
   
   term_names <- data.frame(summary(mod1)$aliased)
@@ -1543,128 +1526,11 @@ regressions_4 <- function (my_df, table_description, table_output){
     )
   
   return(out_df)
-
+  
 }
 
 mod4a_coefs <- regressions_4(df_storm, "Unbalanced", "reg4_unbalanced.tex")
 mod4b_coefs <-regressions_4(b_df_storm, "Balanced", "reg4_balanced.tex")
-
-#:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-
-
-#:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-### Fifth Set of Regressions ---------------------------------------------------
-#:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-
-regressions_5 <- function (my_df, table_description, table_output){
-  
-  mod1 <- lm(log(exps_npo) ~ treatment*tpost_D + 
-               treatment:tpost_D:log(CONT) + 
-               as.factor(year) + as.factor(FIPS),
-             data = my_df)
-  
-  mod2 <- lm(log(pop/NONPROFITS) ~ treatment*tpost_D + 
-               treatment:tpost_D:log(CONT) + 
-               as.factor(year) + as.factor(FIPS),
-             data = my_df)
-  
-  mod3 <- lm(log(TOTREV/NONPROFITS) ~ treatment*tpost_D + 
-               treatment:tpost_D:log(CONT) + 
-               as.factor(year) + as.factor(FIPS),
-             data = my_df)
-  
-  mod4 <- lm(log(TOTASS/NONPROFITS) ~ treatment*tpost_D + 
-               treatment:tpost_D:log(CONT) + 
-               as.factor(year) + as.factor(FIPS),
-             data = my_df)
-  
-  mod5 <- lm(log(CONT/NONPROFITS) ~ treatment*tpost_D + 
-               treatment:tpost_D:log(CONT) + 
-               as.factor(year) + as.factor(FIPS),
-             data = my_df)
-  
-  mod6 <- lm(cont_rev ~ treatment*tpost_D + 
-               treatment:tpost_D:log(CONT) + 
-               as.factor(year) + as.factor(FIPS),
-             data = my_df)
-  
-  my_models = list(mod1, mod2, mod3, mod4, mod5, mod6)
-  my_SE <- lapply(my_models, do_the_SE)
-  
-  
-  stargazer(mod1, mod2, mod3, mod4, mod5, mod6,
-            title = paste("Hurricane Ike, Scaled with Log Contributions---", 
-                          table_description, sep=""),
-            omit = c("factor","Constant"),
-            se = my_SE,
-            type = "latex",
-            order = c(
-              "treatment:tpost_D:log(CONT)",
-              "treatment:tpost_D",
-              "treatment",
-              "tpost_D"
-            ),
-            font.size = 'footnotesize',
-            covariate.labels = c(
-              "Disaster * Post Storm * Log Cont.",
-              "Disaster * Post Storm",
-              "Disaster",
-              "Post Storm"
-            ),
-            dep.var.labels = c(
-              "Productivity",
-              "Concentration",
-              "Incomes",
-              "Wealth",
-              "Resource Use",
-              "Resource Dependence"
-            ),
-            omit.stat = c("rsq", "adj.rsq"), 
-            out = paste("Results/Regression Tables/", table_output, sep = ""))
-  
-  # Main Coefficient Reporting dataframe
-  model_num <- rep("Model 5", 6)
-  panel_type <- rep(table_description, 6)
-  outcome <- c(
-    "Productivity",
-    "Concentration",
-    "Incomes",
-    "Wealth",
-    "Resource Use",
-    "Resource Dependence"
-  )
-  
-  main_coefs <- c(
-    mod1$coefficients["treatment:tpost_D:log(CONT)"],
-    mod2$coefficients["treatment:tpost_D:log(CONT)"],
-    mod3$coefficients["treatment:tpost_D:log(CONT)"],
-    mod4$coefficients["treatment:tpost_D:log(CONT)"],
-    mod5$coefficients["treatment:tpost_D:log(CONT)"],
-    mod6$coefficients["treatment:tpost_D:log(CONT)"]
-  )
-  
-  term_names <- data.frame(summary(mod1)$aliased)
-  term_names <- rownames(term_names)
-  main_se <- lapply(my_SE, function (x) data.frame(term_names, x))
-  main_se <- bind_rows(main_se)
-  main_se <- main_se %>% 
-    filter(term_names == "treatment:tpost_D:log(CONT)")
-  main_se <- main_se$x
-  
-  out_df <- data.frame(model_num, panel_type, outcome, main_coefs, main_se)
-  colnames(out_df) <- c("model","panel","outcome","coefs","se")
-  out_df <- out_df %>% 
-    mutate(
-      lower_CI = coefs - 1.96*se,
-      upper_CI = coefs + 1.96*se
-    )
-  
-  return(out_df)
-  
-}
-
-mod5a_coefs <- regressions_5(df_storm, "Unbalanced", "reg5_unbalanced.tex")
-mod5b_coefs <- regressions_5(b_df_storm, "Balanced", "reg5_balanced.tex")
 
 #:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
@@ -1677,13 +1543,12 @@ all_mods <- bind_rows(list(mod1a_coefs, mod1b_coefs,
                            mod2a_coefs, mod2b_coefs, 
                            mod3a_coefs, mod3b_coefs, mod3c_coefs, mod3d_coefs, 
                            mod3e_coefs, mod3f_coefs,
-                           mod4a_coefs, mod4b_coefs,
-                           mod5a_coefs, mod5b_coefs))
+                           mod4a_coefs, mod4b_coefs))
 
 png("Results/Robustness Checks/Panel Balance/Model1.png", 
     width=6, height=4, units="in", res=600)
 ggplot(all_mods %>% filter(model == "Model 1"), x=panel, y=coefs) +
-  facet_wrap(vars(outcome), scales="free", nrow = 2) +
+  facet_wrap(vars(outcome), scales="free", nrow = 3) +
   geom_errorbar(aes(x=panel, ymin = lower_CI, ymax = upper_CI),
                 color = natparks.pals("Yellowstone", 1), 
                 size=0.5, width=0.5) +
@@ -1698,7 +1563,7 @@ dev.off()
 png("Results/Robustness Checks/Panel Balance/Model2.png", 
     width=6, height=4, units="in", res=600)
 ggplot(all_mods %>% filter(model == "Model 2"), x=panel, y=coefs) +
-  facet_wrap(vars(outcome), scales="free", nrow = 2) +
+  facet_wrap(vars(outcome), scales="free", nrow = 3) +
   geom_errorbar(aes(x=panel, ymin = lower_CI, ymax = upper_CI),
                 color = natparks.pals("Yellowstone", 1), 
                 size=0.5, width=0.5) +
@@ -1719,7 +1584,7 @@ temp <- all_mods %>%
 png("Results/Robustness Checks/Panel Balance/Model3.png", 
     width=8, height=4, units="in", res=600)
 ggplot(temp, x=panel, y=coefs) +
-  facet_wrap(vars(outcome), scales="free", nrow = 2) +
+  facet_wrap(vars(outcome), scales="free", nrow = 3) +
   geom_errorbar(aes(x=panel, ymin = lower_CI, ymax = upper_CI, color=Cutoff),
                 size=0.5, width=0.5, position=position_dodge(width = 1)) +
   geom_point(aes(x=panel, y=coefs, color=Cutoff), size=2, position=position_dodge(width = 1)) +
@@ -1732,21 +1597,7 @@ dev.off()
 png("Results/Robustness Checks/Panel Balance/Model4.png", 
     width=6, height=4, units="in", res=600)
 ggplot(all_mods %>% filter(model == "Model 4"), x=panel, y=coefs) +
-  facet_wrap(vars(outcome), scales="free", nrow = 2) +
-  geom_errorbar(aes(x=panel, ymin = lower_CI, ymax = upper_CI),
-                color = natparks.pals("Yellowstone", 1), 
-                size=0.5, width=0.5) +
-  geom_point(aes(x=panel, y=coefs), color = natparks.pals("Yellowstone", 1), 
-             size=2) +
-  geom_hline(color="black", yintercept = 0) +
-  labs(x=NULL, y=NULL) +
-  theme_bw()
-dev.off()
-
-png("Results/Robustness Checks/Panel Balance/Model5.png", 
-    width=6, height=4, units="in", res=600)
-ggplot(all_mods %>% filter(model == "Model 5"), x=panel, y=coefs) +
-  facet_wrap(vars(outcome), scales="free", nrow = 2) +
+  facet_wrap(vars(outcome), scales="free", nrow = 3) +
   geom_errorbar(aes(x=panel, ymin = lower_CI, ymax = upper_CI),
                 color = natparks.pals("Yellowstone", 1), 
                 size=0.5, width=0.5) +
@@ -1760,8 +1611,8 @@ dev.off()
 
 rm(all_mods, mod1a_coefs, mod1b_coefs, mod2a_coefs, mod2b_coefs, 
    mod3a_coefs, mod3b_coefs, mod3c_coefs, mod3d_coefs, mod3e_coefs, mod3f_coefs,
-   mod4a_coefs, mod4b_coefs, mod5a_coefs, mod5b_coefs, temp
-   )
+   mod4a_coefs, mod4b_coefs, temp
+)
 
 #:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
@@ -1775,49 +1626,54 @@ rm(all_mods, mod1a_coefs, mod1b_coefs, mod2a_coefs, mod2b_coefs,
 #:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
 regressions_1 <- function (my_df, placebo_year){
-
+  
   my_df <- my_df %>% mutate(
     year = as.numeric(year) + 1999,
     tpost_D = ifelse(year >= placebo_year, 1, 0)
   )
   
-  mod1 <- lm(log(exps_npo) ~ treatment*tpost_D + 
+  mod1 <- lm(log(density) ~ treatment*tpost_D + 
                as.factor(year) + as.factor(FIPS),
              data = my_df)
   
-  mod2 <- lm(log(pop/NONPROFITS) ~ treatment*tpost_D + 
+  mod2 <- lm(log(concentration) ~ treatment*tpost_D + 
                as.factor(year) + as.factor(FIPS),
              data = my_df)
   
-  mod3 <- lm(log(TOTREV/NONPROFITS) ~ treatment*tpost_D + 
+  mod3 <- lm(log(wealth) ~ treatment*tpost_D + 
                as.factor(year) + as.factor(FIPS),
              data = my_df)
   
-  mod4 <- lm(log(TOTASS/NONPROFITS) ~ treatment*tpost_D + 
+  mod4 <- lm(log(distribution) ~ treatment*tpost_D + 
                as.factor(year) + as.factor(FIPS),
              data = my_df)
   
-  mod5 <- lm(log(CONT/NONPROFITS) ~ treatment*tpost_D + 
+  mod5 <- lm(log(output) ~ treatment*tpost_D + 
                as.factor(year) + as.factor(FIPS),
              data = my_df)
   
-  mod6 <- lm(cont_rev ~ treatment*tpost_D + 
+  mod6 <- lm(log(use) ~ treatment*tpost_D + 
                as.factor(year) + as.factor(FIPS),
              data = my_df)
   
-  my_models = list(mod1, mod2, mod3, mod4, mod5, mod6)
+  mod7 <- lm(dependence ~ treatment*tpost_D + 
+               as.factor(year) + as.factor(FIPS),
+             data = my_df)
+  
+  my_models = list(mod1, mod2, mod3, mod4, mod5, mod6, mod7)
   my_SE <- lapply(my_models, do_the_SE)
   
   # Main Coefficient Reporting dataframe
-  model_num <- rep("Model 1", 6)
-  panel_type <- rep(placebo_year, 6)
+  model_num <- rep("Model 1", 7)
+  panel_type <- rep(placebo_year, 7)
   outcome <- c(
-    "Productivity",
+    "Density",
     "Concentration",
-    "Incomes",
     "Wealth",
-    "Resource Use",
-    "Resource Dependence"
+    "Distribution",
+    "Output",
+    "Use",
+    "Dependence"
   )
   
   main_coefs <- c(
@@ -1826,7 +1682,8 @@ regressions_1 <- function (my_df, placebo_year){
     mod3$coefficients["treatment:tpost_D"],
     mod4$coefficients["treatment:tpost_D"],
     mod5$coefficients["treatment:tpost_D"],
-    mod6$coefficients["treatment:tpost_D"]
+    mod6$coefficients["treatment:tpost_D"],
+    mod7$coefficients["treatment:tpost_D"]
   )
   
   term_names <- data.frame(summary(mod1)$aliased)
@@ -1846,7 +1703,7 @@ regressions_1 <- function (my_df, placebo_year){
     )
   
   return(out_df)
-
+  
 }
 
 #:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -1863,43 +1720,48 @@ regressions_2 <- function (my_df, placebo_year){
     tpost_D = ifelse(year >= placebo_year, 1, 0)
   )
   
-  mod1 <- lm(log(exps_npo) ~ treatment*tpost_D*log(CONT) + 
+  mod1 <- lm(log(density) ~ treatment*tpost_D*log(CONT) + 
                as.factor(year) + as.factor(FIPS),
              data = my_df)
   
-  mod2 <- lm(log(pop/NONPROFITS) ~ treatment*tpost_D*log(CONT) + 
-               as.factor(year) + as.factor(FIPS),
-             data = my_df)
-   
-  mod3 <- lm(log(TOTREV/NONPROFITS) ~ treatment*tpost_D*log(CONT) + 
+  mod2 <- lm(log(concentration) ~ treatment*tpost_D*log(CONT) + 
                as.factor(year) + as.factor(FIPS),
              data = my_df)
   
-  mod4 <- lm(log(TOTASS/NONPROFITS) ~ treatment*tpost_D*log(CONT) + 
+  mod3 <- lm(log(wealth) ~ treatment*tpost_D*log(CONT) + 
                as.factor(year) + as.factor(FIPS),
              data = my_df)
   
-  mod5 <- lm(log(CONT/NONPROFITS) ~ treatment*tpost_D*log(CONT) + 
+  mod4 <- lm(log(distribution) ~ treatment*tpost_D*log(CONT) + 
                as.factor(year) + as.factor(FIPS),
              data = my_df)
   
-  mod6 <- lm(cont_rev ~ treatment*tpost_D*log(CONT) + 
+  mod5 <- lm(log(output) ~ treatment*tpost_D*log(CONT) + 
                as.factor(year) + as.factor(FIPS),
              data = my_df)
   
-  my_models = list(mod1, mod2, mod3, mod4, mod5, mod6)
+  mod6 <- lm(log(use) ~ treatment*tpost_D*log(CONT) + 
+               as.factor(year) + as.factor(FIPS),
+             data = my_df)
+  
+  mod7 <- lm(dependence ~ treatment*tpost_D*log(CONT) + 
+               as.factor(year) + as.factor(FIPS),
+             data = my_df)
+  
+  my_models = list(mod1, mod2, mod3, mod4, mod5, mod6, mod7)
   my_SE <- lapply(my_models, do_the_SE)
   
   # Main Coefficient Reporting dataframe
-  model_num <- rep("Model 2", 6)
-  panel_type <- rep(placebo_year, 6)
+  model_num <- rep("Model 2", 7)
+  panel_type <- rep(placebo_year, 7)
   outcome <- c(
-    "Productivity",
+    "Density",
     "Concentration",
-    "Incomes",
     "Wealth",
-    "Resource Use",
-    "Resource Dependence"
+    "Distribution",
+    "Output",
+    "Use",
+    "Dependence"
   )
   
   main_coefs <- c(
@@ -1908,7 +1770,8 @@ regressions_2 <- function (my_df, placebo_year){
     mod3$coefficients["treatment:tpost_D:log(CONT)"],
     mod4$coefficients["treatment:tpost_D:log(CONT)"],
     mod5$coefficients["treatment:tpost_D:log(CONT)"],
-    mod6$coefficients["treatment:tpost_D:log(CONT)"]
+    mod6$coefficients["treatment:tpost_D:log(CONT)"],
+    mod7$coefficients["treatment:tpost_D:log(CONT)"]
   )
   
   term_names <- data.frame(summary(mod1)$aliased)
@@ -1953,44 +1816,49 @@ regressions_3 <- function (my_df, placebo_year){
     ) %>% 
     ungroup
   
-  mod1 <- lm(log(exps_npo) ~ treatment*tpost_D*cont_dich + 
+  mod1 <- lm(log(density) ~ treatment*tpost_D*cont_dich + 
                as.factor(year) + as.factor(FIPS),
              data = my_df)
   
-  mod2 <- lm(log(pop/NONPROFITS) ~ treatment*tpost_D*cont_dich + 
+  mod2 <- lm(log(concentration) ~ treatment*tpost_D*cont_dich + 
                as.factor(year) + as.factor(FIPS),
              data = my_df)
   
-  mod3 <- lm(log(TOTREV/NONPROFITS) ~ treatment*tpost_D*cont_dich + 
+  mod3 <- lm(log(wealth) ~ treatment*tpost_D*cont_dich + 
                as.factor(year) + as.factor(FIPS),
              data = my_df)
   
-  mod4 <- lm(log(TOTASS/NONPROFITS) ~ treatment*tpost_D*cont_dich + 
+  mod4 <- lm(log(distribution) ~ treatment*tpost_D*cont_dich + 
                as.factor(year) + as.factor(FIPS),
              data = my_df)
   
-  mod5 <- lm(log(CONT/NONPROFITS) ~ treatment*tpost_D*cont_dich + 
+  mod5 <- lm(log(output) ~ treatment*tpost_D*cont_dich + 
                as.factor(year) + as.factor(FIPS),
              data = my_df)
   
-  mod6 <- lm(cont_rev ~ treatment*tpost_D*cont_dich + 
+  mod6 <- lm(log(use) ~ treatment*tpost_D*cont_dich + 
                as.factor(year) + as.factor(FIPS),
              data = my_df)
   
-  my_models = list(mod1, mod2, mod3, mod4, mod5, mod6)
+  mod7 <- lm(dependence ~ treatment*tpost_D*cont_dich + 
+               as.factor(year) + as.factor(FIPS),
+             data = my_df)
+  
+  my_models = list(mod1, mod2, mod3, mod4, mod5, mod6, mod7)
   my_SE <- lapply(my_models, do_the_SE)
   
   
   # Main Coefficient Reporting dataframe
-  model_num <- rep(paste("Model 3", sep=""), 6)
-  panel_type <- rep(placebo_year, 6)
+  model_num <- rep(paste("Model 3", sep=""), 7)
+  panel_type <- rep(placebo_year, 7)
   outcome <- c(
-    "Productivity",
+    "Density",
     "Concentration",
-    "Incomes",
     "Wealth",
-    "Resource Use",
-    "Resource Dependence"
+    "Distribution",
+    "Output",
+    "Use",
+    "Dependence"
   )
   
   main_coefs <- c(
@@ -1999,7 +1867,8 @@ regressions_3 <- function (my_df, placebo_year){
     mod3$coefficients["treatment:tpost_D:cont_dich"],
     mod4$coefficients["treatment:tpost_D:cont_dich"],
     mod5$coefficients["treatment:tpost_D:cont_dich"],
-    mod6$coefficients["treatment:tpost_D:cont_dich"]
+    mod6$coefficients["treatment:tpost_D:cont_dich"],
+    mod7$coefficients["treatment:tpost_D:cont_dich"]
   )
   
   term_names <- data.frame(summary(mod1)$aliased)
@@ -2038,44 +1907,49 @@ regressions_4 <- function (my_df, placebo_year){
       tpost = max(year - placebo_year, 0)
     )
   
-  mod1 <- lm(log(exps_npo) ~ treatment*tpost_D + treatment:tpost_D:tpost + 
+  mod1 <- lm(log(density) ~ treatment*tpost_D + treatment:tpost_D:tpost + 
                as.factor(year) + as.factor(FIPS),
              data = my_df)
   
-  mod2 <- lm(log(pop/NONPROFITS) ~ treatment*tpost_D + treatment:tpost_D:tpost + 
+  mod2 <- lm(log(concentration) ~ treatment*tpost_D + treatment:tpost_D:tpost + 
                as.factor(year) + as.factor(FIPS),
              data = my_df)
   
-  mod3 <- lm(log(TOTREV/NONPROFITS) ~ treatment*tpost_D + treatment:tpost_D:tpost + 
+  mod3 <- lm(log(wealth) ~ treatment*tpost_D + treatment:tpost_D:tpost + 
                as.factor(year) + as.factor(FIPS),
              data = my_df)
   
-  mod4 <- lm(log(TOTASS/NONPROFITS) ~ treatment*tpost_D + treatment:tpost_D:tpost + 
+  mod4 <- lm(log(distribution) ~ treatment*tpost_D + treatment:tpost_D:tpost + 
                as.factor(year) + as.factor(FIPS),
              data = my_df)
   
-  mod5 <- lm(log(CONT/NONPROFITS) ~ treatment*tpost_D + treatment:tpost_D:tpost + 
+  mod5 <- lm(log(output) ~ treatment*tpost_D + treatment:tpost_D:tpost + 
                as.factor(year) + as.factor(FIPS),
              data = my_df)
   
-  mod6 <- lm(cont_rev ~ treatment*tpost_D + treatment:tpost_D:tpost + 
+  mod6 <- lm(log(use) ~ treatment*tpost_D + treatment:tpost_D:tpost + 
                as.factor(year) + as.factor(FIPS),
              data = my_df)
   
-  my_models = list(mod1, mod2, mod3, mod4, mod5, mod6)
+  mod7 <- lm(dependence ~ treatment*tpost_D + treatment:tpost_D:tpost + 
+               as.factor(year) + as.factor(FIPS),
+             data = my_df)
+  
+  my_models = list(mod1, mod2, mod3, mod4, mod5, mod6, mod7)
   my_SE <- lapply(my_models, do_the_SE)
   
   
   # Main Coefficient Reporting dataframe
-  model_num <- rep("Model 4", 6)
-  panel_type <- rep(placebo_year, 6)
+  model_num <- rep("Model 4", 7)
+  panel_type <- rep(placebo_year, 7)
   outcome <- c(
-    "Productivity",
+    "Density",
     "Concentration",
-    "Incomes",
     "Wealth",
-    "Resource Use",
-    "Resource Dependence"
+    "Distribution",
+    "Output",
+    "Use",
+    "Dependence"
   )
   
   main_coefs <- c(
@@ -2084,7 +1958,8 @@ regressions_4 <- function (my_df, placebo_year){
     mod3$coefficients["treatment:tpost_D:tpost"],
     mod4$coefficients["treatment:tpost_D:tpost"],
     mod5$coefficients["treatment:tpost_D:tpost"],
-    mod6$coefficients["treatment:tpost_D:tpost"]
+    mod6$coefficients["treatment:tpost_D:tpost"],
+    mod7$coefficients["treatment:tpost_D:tpost"]
   )
   
   term_names <- data.frame(summary(mod1)$aliased)
@@ -2109,92 +1984,6 @@ regressions_4 <- function (my_df, placebo_year){
 
 #:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
-
-#:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-### Fifth Set of Regressions ---------------------------------------------------
-#:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-
-regressions_5 <- function (my_df, placebo_year){
-  
-  my_df <- my_df %>% mutate(
-    year = as.numeric(year) + 1999,
-    tpost_D = ifelse(year >= placebo_year, 1, 0)
-  )
-  
-  mod1 <- lm(log(exps_npo) ~ treatment*tpost_D +
-               treatment:tpost_D:log(CONT) + 
-               as.factor(year) + as.factor(FIPS),
-             data = my_df)
-  
-  mod2 <- lm(log(pop/NONPROFITS) ~ treatment*tpost_D +
-               treatment:tpost_D:log(CONT) + 
-               as.factor(year) + as.factor(FIPS),
-             data = my_df)
-  
-  mod3 <- lm(log(TOTREV/NONPROFITS) ~ treatment*tpost_D +
-               treatment:tpost_D:log(CONT) + 
-               as.factor(year) + as.factor(FIPS),
-             data = my_df)
-  
-  mod4 <- lm(log(TOTASS/NONPROFITS) ~ treatment*tpost_D +
-               treatment:tpost_D:log(CONT) + 
-               as.factor(year) + as.factor(FIPS),
-             data = my_df)
-  
-  mod5 <- lm(log(CONT/NONPROFITS) ~ treatment*tpost_D +
-               treatment:tpost_D:log(CONT) + 
-               as.factor(year) + as.factor(FIPS),
-             data = my_df)
-  
-  mod6 <- lm(cont_rev ~ treatment*tpost_D +
-               treatment:tpost_D:log(CONT) + 
-               as.factor(year) + as.factor(FIPS),
-             data = my_df)
-  
-  my_models = list(mod1, mod2, mod3, mod4, mod5, mod6)
-  my_SE <- lapply(my_models, do_the_SE)
-  
-  # Main Coefficient Reporting dataframe
-  model_num <- rep("Model 5", 6)
-  panel_type <- rep(placebo_year, 6)
-  outcome <- c(
-    "Productivity",
-    "Concentration",
-    "Incomes",
-    "Wealth",
-    "Resource Use",
-    "Resource Dependence"
-  )
-  
-  main_coefs <- c(
-    mod1$coefficients["treatment:tpost_D:log(CONT)"],
-    mod2$coefficients["treatment:tpost_D:log(CONT)"],
-    mod3$coefficients["treatment:tpost_D:log(CONT)"],
-    mod4$coefficients["treatment:tpost_D:log(CONT)"],
-    mod5$coefficients["treatment:tpost_D:log(CONT)"],
-    mod6$coefficients["treatment:tpost_D:log(CONT)"]
-  )
-  
-  term_names <- data.frame(summary(mod1)$aliased)
-  term_names <- rownames(term_names)
-  main_se <- lapply(my_SE, function (x) data.frame(term_names, x))
-  main_se <- bind_rows(main_se)
-  main_se <- main_se %>% 
-    filter(term_names == "treatment:tpost_D:log(CONT)")
-  main_se <- main_se$x
-  
-  out_df <- data.frame(model_num, panel_type, outcome, main_coefs, main_se)
-  colnames(out_df) <- c("model","panel","outcome","coefs","se")
-  out_df <- out_df %>% 
-    mutate(
-      lower_CI = coefs - 1.96*se,
-      upper_CI = coefs + 1.96*se
-    )
-  
-  return(out_df)
-  
-}
-
 #:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
 # Actually run the placebo tests
@@ -2205,20 +1994,18 @@ placebos1 <- lapply(placebo_years, function (x) regressions_1(df_storm, x))
 placebos2 <- lapply(placebo_years, function (x) regressions_2(df_storm, x))
 placebos3 <- lapply(placebo_years, function (x) regressions_3(df_storm, x))
 placebos4 <- lapply(placebo_years, function (x) regressions_4(df_storm, x))
-placebos5 <- lapply(placebo_years, function (x) regressions_5(df_storm, x))
 
 placebos1 <- bind_rows(placebos1)
 placebos2 <- bind_rows(placebos2)
 placebos3 <- bind_rows(placebos3)
 placebos4 <- bind_rows(placebos4)
-placebos5 <- bind_rows(placebos5)
 
 # Visualize the placebo tests
 
-png("Results/Robustness Checks/Placebo Tests/set1.png", width=7, height = 4, 
+png("Results/Robustness Checks/Placebo Tests/set1.png", width=8, height = 4, 
     units="in", res=600)
 ggplot(placebos1 , x=panel, y=coefs) +
-  facet_wrap(vars(outcome), scales="free", nrow = 2) +
+  facet_wrap(vars(outcome), scales="free", nrow = 3) +
   geom_errorbar(aes(x=panel, ymin = lower_CI, ymax = upper_CI),
                 color = natparks.pals("Yellowstone", 1), 
                 size=0.5, width=0.5) +
@@ -2233,7 +2020,7 @@ dev.off()
 png("Results/Robustness Checks/Placebo Tests/set2.png", width=7, height = 4, 
     units="in", res=600)
 ggplot(placebos2, x=panel, y=coefs) +
-  facet_wrap(vars(outcome), scales="free", nrow = 2) +
+  facet_wrap(vars(outcome), scales="free", nrow = 3) +
   geom_errorbar(aes(x=panel, ymin = lower_CI, ymax = upper_CI),
                 color = natparks.pals("Yellowstone", 1), 
                 size=0.5, width=0.5) +
@@ -2248,7 +2035,7 @@ dev.off()
 png("Results/Robustness Checks/Placebo Tests/set3.png", width=7, height = 4, 
     units="in", res=600)
 ggplot(placebos3, x=panel, y=coefs) +
-  facet_wrap(vars(outcome), scales="free", nrow = 2) +
+  facet_wrap(vars(outcome), scales="free", nrow = 3) +
   geom_errorbar(aes(x=panel, ymin = lower_CI, ymax = upper_CI),
                 color = natparks.pals("Yellowstone", 1), 
                 size=0.5, width=0.5) +
@@ -2263,21 +2050,7 @@ dev.off()
 png("Results/Robustness Checks/Placebo Tests/set4.png", width=7, height = 4, 
     units="in", res=600)
 ggplot(placebos4, x=panel, y=coefs) +
-  facet_wrap(vars(outcome), scales="free", nrow = 2) +
-  geom_errorbar(aes(x=panel, ymin = lower_CI, ymax = upper_CI),
-                color = natparks.pals("Yellowstone", 1), 
-                size=0.5, width=0.5) +
-  geom_point(aes(x=panel, y=coefs), color = natparks.pals("Yellowstone", 1), 
-             size=2) +
-  geom_hline(color="black", yintercept = 0) +
-  labs(x="\nPlacebo Year (2008 = Actual Treatment Year)", y="Coefficient Estimate\n") +
-  theme_bw()
-dev.off()
-
-png("Results/Robustness Checks/Placebo Tests/set5.png", width=7, height = 4, 
-    units="in", res=600)
-ggplot(placebos5, x=panel, y=coefs) +
-  facet_wrap(vars(outcome), scales="free", nrow = 2) +
+  facet_wrap(vars(outcome), scales="free", nrow = 3) +
   geom_errorbar(aes(x=panel, ymin = lower_CI, ymax = upper_CI),
                 color = natparks.pals("Yellowstone", 1), 
                 size=0.5, width=0.5) +
@@ -2297,140 +2070,145 @@ gc()
 ## Event Studies --------------------------------------------------------------
 #:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
-df <- main_df
-
-df$center_year <- df$year - 2007
-
-df <- df %>% mutate(center_year = ifelse(center_year==0, -20, center_year))
-
-df <- df %>% 
-  mutate(
-    log_exps_npo = log(EXPS/NONPROFITS),
-    log_pop_npo = log(pop/NONPROFITS),
-    log_rev_npo = log(TOTREV/NONPROFITS),
-    log_ass_npo = log(TOTASS/NONPROFITS),
-    log_cont_npo = log(cont_npo),
-    log_cont_rev = log(cont_rev)
-  )
-
-
-# Regular Event Study
-
-run_event_study <- function(out_var, variable_lab, file_name){
-  
-  my_cols <- c("FIPS", "center_year", "treatment", "pop", out_var)
-  my_df <- df[my_cols]
-  colnames(my_df) <- c("FIPS", "center_year", "treatment", "pop", "outcome")
-  
-  temp <- lm(outcome ~ treatment*as.factor(center_year) + FIPS, 
-             data = my_df,
-             weights = pop)
-  
-  temp <- summary(temp)
-  
-  temp <- data.frame(temp$coefficients)
-  temp$var <- rownames(temp)
-  rownames(temp) <- NULL
-  
-  temp <- temp[grepl(":", temp$var),]
-  temp[nrow(temp) +1,] <- c(0, 0, 0, 0, "0") 
-  temp <- temp %>% 
-    rowwise %>% 
-    mutate(
-      estimate = as.numeric(Estimate),
-      std_err = as.numeric(`Std..Error`),
-      period = as.integer(gsub(".*)", "", var)),
-      ci_lower = estimate - 1.96 * std_err,
-      ci_upper = estimate + 1.96 * std_err
-    )
-  
-  
-  print({
-    ggplot(temp, aes(x = period + 2007, y = estimate)) + 
-      geom_vline(xintercept = 2007, color="grey") +
-      geom_errorbar(aes(ymin = ci_lower, ymax = ci_upper), size=0.5, width=0.5, 
-                    color = natparks.pals("Yellowstone", 1)) +
-      geom_point(aes(x=period + 2007, y=estimate), size=2, 
-                 color = natparks.pals("Yellowstone", 1)) + 
-      geom_line(color = natparks.pals("Yellowstone", 1)) +
-      labs(x="\nYear (2007 = Pre-Storm Benchmark)", 
-           y = "Estimated Effect\n") +
-      geom_hline(yintercept=0) +
-      ggtitle(label = variable_lab) +
-      theme_bw()
-    ggsave(paste("Results/Figures/Ike Event Studies/Population Weighted/", 
-                 file_name, ".png", sep=""), width = 6, height = 4, units='in')
-  })
-  
-}
-
-run_event_study("log_exps_npo", "log(Expenses/Nonprofit)", "Outcome1")
-run_event_study("log_pop_npo", "log(Population/Nonprofit)", "Outcome2")
-run_event_study("log_rev_npo", "log(Revenues/Nonprofit)", "Outcome3")
-run_event_study("log_ass_npo", "log(Assets/Nonprofit)", "Outcome4")
-run_event_study("log_cont_npo", "log(Contributions/Nonprofit)", "Outcome5")
-run_event_study("log_cont_rev", "log(Contributions/Revenue)", "Outcome6")
-
-# Contribution Scaled -- Interpretation Challenged -- Event Study
-
-run_event_study_2 <- function(out_var, variable_lab, file_name){
-  
-  my_cols <- c("FIPS", "center_year", "treatment", "CONT", out_var)
-  my_df <- df[my_cols]
-  colnames(my_df) <- c("FIPS", "center_year", "treatment", "cont", "outcome")
-  
-  temp <- lm(outcome ~ treatment*as.factor(center_year)*cont + FIPS, 
-             data = my_df)
-  
-  temp <- summary(temp)
-  
-  temp <- data.frame(temp$coefficients)
-  temp$var <- rownames(temp)
-  rownames(temp) <- NULL
-  
-  temp <- temp[(grepl("treatment", temp$var)) & 
-                 (grepl("cont", temp$var)) &
-                 (grepl("center", temp$var)),]
-  temp[nrow(temp) +1,] <- c(0, 0, 0, 0, "0") 
-  temp <- temp %>% 
-    rowwise %>% 
-    mutate(
-      estimate = as.numeric(Estimate) * 1000000000,
-      std_err = as.numeric(`Std..Error`) * 1000000000,
-      period = gsub(".*)", "", var),
-      period = as.integer(gsub(":.*", "", period)),
-      ci_lower = estimate - 1.96 * std_err,
-      ci_upper = estimate + 1.96 * std_err
-    )
-  
-  print({
-    ggplot(temp, aes(x = period + 2007, y = estimate)) + 
-      geom_vline(xintercept = 2007, color="grey") +
-      geom_errorbar(aes(ymin = ci_lower, ymax = ci_upper), size=0.5, width=0.5,
-                    color = natparks.pals("Yellowstone", 1)) +
-      geom_point(aes(x=period + 2007, y=estimate), size=2, 
-                 color = natparks.pals("Yellowstone", 1)) + 
-      geom_line(color = natparks.pals("Yellowstone", 1)) +
-      labs(x="\nYear (2007 = Pre-Storm Benchmark)", 
-           y = "Estimated Effect\n") +
-      geom_hline(yintercept=0) +
-      ggtitle(label = variable_lab) +
-      theme_bw()
-    ggsave(paste("Results/Figures/Ike Event Studies/Contribution Scaled/", 
-                 file_name, ".png", sep=""), 
-           width = 6, height = 4, units='in')
-  })
-  
-  
-}
-
-run_event_study_2("log_exps_npo", "log(Expenses/Nonprofit)", "Outcome1")
-run_event_study_2("log_pop_npo", "log(Population/Nonprofit)", "Outcome2")
-run_event_study_2("log_rev_npo", "log(Revenues/Nonprofit)", "Outcome3")
-run_event_study_2("log_ass_npo", "log(Assets/Nonprofit)", "Outcome4")
-run_event_study_2("log_cont_npo", "log(Contributions/Nonprofit)", "Outcome5")
-run_event_study_2("log_cont_rev", "log(Contributions/Revenue)", "Outcome6")
-
-rm(df, run_event_study, run_event_study_2)
+# Event studies are---to me---not currently a useful addition. I had previously
+# implemented some event study work with the old metrics. I do not anticipate 
+# re-implementing these event studies, but if there was a need, I would begin by
+# building on this commented out code.
+#
+# df <- main_df
+# 
+# df$center_year <- df$year - 2007
+# 
+# df <- df %>% mutate(center_year = ifelse(center_year==0, -20, center_year))
+# 
+# df <- df %>% 
+#   mutate(
+#     log_exps_npo = log(EXPS/NONPROFITS),
+#     log_pop_npo = log(pop/NONPROFITS),
+#     log_rev_npo = log(TOTREV/NONPROFITS),
+#     log_ass_npo = log(TOTASS/NONPROFITS),
+#     log_cont_npo = log(cont_npo),
+#     log_cont_rev = log(cont_rev)
+#   )
+# 
+# 
+# # Regular Event Study
+# 
+# run_event_study <- function(out_var, variable_lab, file_name){
+#   
+#   my_cols <- c("FIPS", "center_year", "treatment", "pop", out_var)
+#   my_df <- df[my_cols]
+#   colnames(my_df) <- c("FIPS", "center_year", "treatment", "pop", "outcome")
+#   
+#   temp <- lm(outcome ~ treatment*as.factor(center_year) + FIPS, 
+#              data = my_df,
+#              weights = pop)
+#   
+#   temp <- summary(temp)
+#   
+#   temp <- data.frame(temp$coefficients)
+#   temp$var <- rownames(temp)
+#   rownames(temp) <- NULL
+#   
+#   temp <- temp[grepl(":", temp$var),]
+#   temp[nrow(temp) +1,] <- c(0, 0, 0, 0, "0") 
+#   temp <- temp %>% 
+#     rowwise %>% 
+#     mutate(
+#       estimate = as.numeric(Estimate),
+#       std_err = as.numeric(`Std..Error`),
+#       period = as.integer(gsub(".*)", "", var)),
+#       ci_lower = estimate - 1.96 * std_err,
+#       ci_upper = estimate + 1.96 * std_err
+#     )
+#   
+#   
+#   print({
+#     ggplot(temp, aes(x = period + 2007, y = estimate)) + 
+#       geom_vline(xintercept = 2007, color="grey") +
+#       geom_errorbar(aes(ymin = ci_lower, ymax = ci_upper), size=0.5, width=0.5, 
+#                     color = natparks.pals("Yellowstone", 1)) +
+#       geom_point(aes(x=period + 2007, y=estimate), size=2, 
+#                  color = natparks.pals("Yellowstone", 1)) + 
+#       geom_line(color = natparks.pals("Yellowstone", 1)) +
+#       labs(x="\nYear (2007 = Pre-Storm Benchmark)", 
+#            y = "Estimated Effect\n") +
+#       geom_hline(yintercept=0) +
+#       ggtitle(label = variable_lab) +
+#       theme_bw()
+#     ggsave(paste("Results/Figures/Ike Event Studies/Population Weighted/", 
+#                  file_name, ".png", sep=""), width = 6, height = 4, units='in')
+#   })
+#   
+# }
+# 
+# run_event_study("log_exps_npo", "log(Expenses/Nonprofit)", "Outcome1")
+# run_event_study("log_pop_npo", "log(Population/Nonprofit)", "Outcome2")
+# run_event_study("log_rev_npo", "log(Revenues/Nonprofit)", "Outcome3")
+# run_event_study("log_ass_npo", "log(Assets/Nonprofit)", "Outcome4")
+# run_event_study("log_cont_npo", "log(Contributions/Nonprofit)", "Outcome5")
+# run_event_study("log_cont_rev", "log(Contributions/Revenue)", "Outcome6")
+# 
+# # Contribution Scaled -- Interpretation Challenged -- Event Study
+# 
+# run_event_study_2 <- function(out_var, variable_lab, file_name){
+#   
+#   my_cols <- c("FIPS", "center_year", "treatment", "CONT", out_var)
+#   my_df <- df[my_cols]
+#   colnames(my_df) <- c("FIPS", "center_year", "treatment", "cont", "outcome")
+#   
+#   temp <- lm(outcome ~ treatment*as.factor(center_year)*cont + FIPS, 
+#              data = my_df)
+#   
+#   temp <- summary(temp)
+#   
+#   temp <- data.frame(temp$coefficients)
+#   temp$var <- rownames(temp)
+#   rownames(temp) <- NULL
+#   
+#   temp <- temp[(grepl("treatment", temp$var)) & 
+#                  (grepl("cont", temp$var)) &
+#                  (grepl("center", temp$var)),]
+#   temp[nrow(temp) +1,] <- c(0, 0, 0, 0, "0") 
+#   temp <- temp %>% 
+#     rowwise %>% 
+#     mutate(
+#       estimate = as.numeric(Estimate) * 1000000000,
+#       std_err = as.numeric(`Std..Error`) * 1000000000,
+#       period = gsub(".*)", "", var),
+#       period = as.integer(gsub(":.*", "", period)),
+#       ci_lower = estimate - 1.96 * std_err,
+#       ci_upper = estimate + 1.96 * std_err
+#     )
+#   
+#   print({
+#     ggplot(temp, aes(x = period + 2007, y = estimate)) + 
+#       geom_vline(xintercept = 2007, color="grey") +
+#       geom_errorbar(aes(ymin = ci_lower, ymax = ci_upper), size=0.5, width=0.5,
+#                     color = natparks.pals("Yellowstone", 1)) +
+#       geom_point(aes(x=period + 2007, y=estimate), size=2, 
+#                  color = natparks.pals("Yellowstone", 1)) + 
+#       geom_line(color = natparks.pals("Yellowstone", 1)) +
+#       labs(x="\nYear (2007 = Pre-Storm Benchmark)", 
+#            y = "Estimated Effect\n") +
+#       geom_hline(yintercept=0) +
+#       ggtitle(label = variable_lab) +
+#       theme_bw()
+#     ggsave(paste("Results/Figures/Ike Event Studies/Contribution Scaled/", 
+#                  file_name, ".png", sep=""), 
+#            width = 6, height = 4, units='in')
+#   })
+#   
+#   
+# }
+# 
+# run_event_study_2("log_exps_npo", "log(Expenses/Nonprofit)", "Outcome1")
+# run_event_study_2("log_pop_npo", "log(Population/Nonprofit)", "Outcome2")
+# run_event_study_2("log_rev_npo", "log(Revenues/Nonprofit)", "Outcome3")
+# run_event_study_2("log_ass_npo", "log(Assets/Nonprofit)", "Outcome4")
+# run_event_study_2("log_cont_npo", "log(Contributions/Nonprofit)", "Outcome5")
+# run_event_study_2("log_cont_rev", "log(Contributions/Revenue)", "Outcome6")
+# 
+# rm(df, run_event_study, run_event_study_2)
 
 #:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
