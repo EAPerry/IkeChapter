@@ -840,6 +840,8 @@ rm(disasters, disasters_ts)
 ### DiD Figures ----------------------------------------------------------------
 #:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
+# Population Weighted
+
 ike_did <- main_df %>% 
   group_by(year, treatment) %>% 
   mutate(
@@ -942,7 +944,7 @@ dev.off()
 ike_did <- ike_did %>% 
   pivot_wider(names_from = treatment, values_from = 3:9)
 
-# Plots
+# Difference Plots
 p1 <- ggplot(ike_did, aes(x=year, y=log(density_1) - log(density_0))) +
   geom_vline(xintercept = my_hityear) +
   geom_line(lwd = 2, color = natparks.pals("Yellowstone", 1)) +
@@ -1005,6 +1007,166 @@ print({
 })
 dev.off()
 
+# Non-population weight trend figure
+
+ike_did <- main_df %>% 
+  group_by(year, treatment) %>% 
+  summarize(
+    density = mean(density),
+    concentration = mean(concentration),
+    wealth = mean(wealth),
+    distribution = mean(distribution),
+    output = mean(output),
+    use = mean(use),
+    dependence = mean(dependence)
+  )
+
+# Get the year Ike hit
+my_hityear <- max(main_df$hit_year)
+
+# Plots
+p1 <- ggplot(ike_did, aes(x=year, y=log(density), color=as.factor(treatment))) +
+  geom_vline(xintercept = my_hityear) +
+  geom_line(lwd = 2) +
+  labs(x="",y="Log Density\n") +
+  scale_color_manual(values = rev(natparks.pals("Yellowstone", 2)),
+                     labels=c("Control","Treatment")) +
+  theme_bw() +
+  theme(legend.title = element_blank(), text = element_text(size = 9))
+
+p2 <- ggplot(ike_did, aes(x=year, y=log(concentration), color=as.factor(treatment))) +
+  geom_vline(xintercept = my_hityear) +
+  geom_line(lwd = 2) +
+  labs(x="",y="Log Concentration\n") +
+  scale_color_manual(values = rev(natparks.pals("Yellowstone", 2)),
+                     labels=c("Control","Treatment")) +
+  theme_bw() +
+  theme(legend.title = element_blank(), text = element_text(size = 9))
+
+
+p3 <- ggplot(ike_did, aes(x=year, y=log(wealth), color=as.factor(treatment))) +
+  geom_vline(xintercept = my_hityear) +
+  geom_line(lwd = 2) +
+  labs(x="",y="Log Wealth\n") +
+  scale_color_manual(values = rev(natparks.pals("Yellowstone", 2)),
+                     labels=c("Control","Treatment")) +
+  theme_bw() +
+  theme(legend.title = element_blank(), text = element_text(size = 9))
+
+
+p4 <- ggplot(ike_did, aes(x=year, y=log(distribution), color=as.factor(treatment))) +
+  geom_vline(xintercept = my_hityear) +
+  geom_line(lwd = 2) +
+  labs(x="\nYear",y="Log Distribution\n") +
+  scale_color_manual(values = rev(natparks.pals("Yellowstone", 2)),
+                     labels=c("Control","Treatment")) +
+  theme_bw() +
+  theme(legend.title = element_blank(), text = element_text(size = 9))
+
+p5 <- ggplot(ike_did, aes(x=year, y=log(output), color=as.factor(treatment))) +
+  geom_vline(xintercept = my_hityear) +
+  geom_line(lwd = 2) +
+  labs(x="\nYear",y="Log Output\n") +
+  scale_color_manual(values = rev(natparks.pals("Yellowstone", 2)),
+                     labels=c("Control","Treatment")) +
+  theme_bw() +
+  theme(legend.title = element_blank(), text = element_text(size = 9))
+
+p6 <- ggplot(ike_did, aes(x=year, y=log(use), color=as.factor(treatment))) +
+  geom_vline(xintercept = my_hityear) +
+  geom_line(lwd = 2) +
+  labs(x="\nYear",y="Log Resource Use\n") +
+  scale_color_manual(values = rev(natparks.pals("Yellowstone", 2)),
+                     labels=c("Control","Treatment")) +
+  theme_bw() +
+  theme(legend.title = element_blank(), text = element_text(size = 9))
+
+p7 <- ggplot(ike_did, aes(x=year, y=dependence, color=as.factor(treatment))) +
+  geom_vline(xintercept = my_hityear) +
+  geom_line(lwd = 2) +
+  labs(x="\nYear",y="Resource Dependence\n") +
+  scale_color_manual(values = rev(natparks.pals("Yellowstone", 2)),
+                     labels=c("Control","Treatment")) +
+  theme_bw() +
+  theme(legend.title = element_blank(), text = element_text(size = 9))
+
+png("Results/Figures/DiD.png", width=8, height=8, 
+    units="in", res=450)
+print({
+  ggarrange(
+    p1, p2, p3, p4, p5, p6, p7,
+    ncol = 3, nrow = 3,
+    labels = c("a","b","c","d","e","f", "g"),
+    common.legend = TRUE, legend = "bottom")
+})
+dev.off()
+
+
+ike_did <- ike_did %>% 
+  pivot_wider(names_from = treatment, values_from = 3:9)
+
+# Difference Plots
+p1 <- ggplot(ike_did, aes(x=year, y=log(density_1) - log(density_0))) +
+  geom_vline(xintercept = my_hityear) +
+  geom_line(lwd = 2, color = natparks.pals("Yellowstone", 1)) +
+  labs(x="",y="Log Density\n") + 
+  theme_bw() +
+  theme(text = element_text(size = 9))
+
+p2 <- ggplot(ike_did, aes(x=year, y=log(concentration_1) - log(concentration_0))) +
+  geom_vline(xintercept = my_hityear) +
+  geom_line(lwd = 2, color = natparks.pals("Yellowstone", 1)) +
+  labs(x="",y="Log Concentration\n") + 
+  theme_bw() +
+  theme(text = element_text(size = 9))
+
+p3 <- ggplot(ike_did, aes(x=year, y=log(wealth_1) - log(wealth_0))) +
+  geom_vline(xintercept = my_hityear) +
+  geom_line(lwd = 2, color = natparks.pals("Yellowstone", 1)) +
+  labs(x="",y="Log Wealth\n") + 
+  theme_bw() +
+  theme(text = element_text(size = 9))
+
+p4 <- ggplot(ike_did, aes(x=year, y=log(distribution_1) - log(distribution_0))) +
+  geom_vline(xintercept = my_hityear) +
+  geom_line(lwd = 2, color = natparks.pals("Yellowstone", 1)) +
+  labs(x="\nYear",y="Log Distribution\n") + 
+  theme_bw() +
+  theme(text = element_text(size = 9))
+
+p5 <- ggplot(ike_did, aes(x=year, y = log(output_1) - log(output_0))) +
+  geom_vline(xintercept = my_hityear) +
+  geom_line(lwd = 2, color = natparks.pals("Yellowstone", 1)) +
+  labs(x="\nYear",y="Log Output\n") + 
+  theme_bw() +
+  theme(text = element_text(size = 9))
+
+p6 <- ggplot(ike_did, aes(x=year, y = log(use_1) - log(use_0) )) +
+  geom_vline(xintercept = my_hityear) +
+  geom_line(lwd = 2, color = natparks.pals("Yellowstone", 1)) +
+  labs(x="\nYear",y="Log Resource Use\n") + 
+  theme_bw() +
+  theme(text = element_text(size = 9))
+
+p7 <- ggplot(ike_did, aes(x=year, y =  dependence_1 - dependence_0 )) +
+  geom_vline(xintercept = my_hityear) +
+  geom_line(lwd = 2, color = natparks.pals("Yellowstone", 1)) +
+  labs(x="\nYear",y="Resource Dependence\n") + 
+  theme_bw() +
+  theme(text = element_text(size = 9))
+
+png("Results/Figures/differenced.png", width=8, height=8, 
+    units="in", res=450)
+print({
+  ggarrange(
+    p1, p2, p3, p4, p5, p6, p7, 
+    ncol = 3, nrow = 3,
+    labels = c("a","b","c","d","e","f"),
+    common.legend = TRUE, legend = "bottom")
+})
+dev.off()
+
+
 rm(ike_did, p1, p2, p3, p4, p5, p6, p7, my_hityear)
 
 #:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -1018,23 +1180,26 @@ rm(ike_did, p1, p2, p3, p4, p5, p6, p7, my_hityear)
 main_df$tpost_D <- ifelse(main_df$year >= main_df$hit_year, 1, 0)
 
 # Make panel data frames
-df_storm <- pdata.frame(main_df, index = c("FIPS", "year"))
+# df_storm <- pdata.frame(main_df, index = c("FIPS", "year"))
+df_storm <- main_df
 b_df_storm <- make.pbalanced(main_df, index = c("FIPS", "year"), 
                              balance.type = "shared.individuals")
 
 # Write a function to make the standard errors
 do_the_SE <- function(model){
+  
   # Cluster the SEs
   se <- data.frame(summary(model, cluster = "FIPS")$coefficients)$`Std..Error`
   
   # Fix the position problem
   temp <- which(summary(model)[["aliased"]])
-  se <- append(se, 1, after=temp[1]-1)
-  se <- append(se, 1, after=temp[2]-1)
+  
+  for (i in 1:length(temp)){se <- append(se, 1, after=temp[i]-1)}
   
   return(se)
   
 }
+
 
 #:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 ### First Set of Regressions ---------------------------------------------------
@@ -1415,45 +1580,44 @@ mod3f_coefs <- regressions_3(b_df_storm, "Balanced", "reg3-10_balanced.tex", 0.1
 #:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
 regressions_4 <- function (my_df, table_description, table_output){
-  
-  my_df <- my_df %>% 
-    rowwise %>% 
+
+  my_df <- my_df %>%
+    rowwise %>%
     mutate(
-      year = as.numeric(year) + 1999,
+      year = as.numeric(year),
       tpost = max(year - hit_year, 0)
     )
   
-  mod1 <- lm(log(density) ~ treatment*tpost_D + treatment:tpost_D:tpost + 
-               as.factor(year) + as.factor(FIPS),
+  mod1 <- lm(log(density) ~  treatment:tpost_D:tpost + treatment*tpost_D + 
+               tpost + as.factor(year) + as.factor(FIPS),
              data = my_df)
   
-  mod2 <- lm(log(concentration) ~ treatment*tpost_D + treatment:tpost_D:tpost + 
-               as.factor(year) + as.factor(FIPS),
+  mod2 <- lm(log(concentration) ~ treatment:tpost_D:tpost + treatment*tpost_D + 
+               tpost + as.factor(year) + as.factor(FIPS),
              data = my_df)
   
-  mod3 <- lm(log(wealth) ~ treatment*tpost_D + treatment:tpost_D:tpost + 
-               as.factor(year) + as.factor(FIPS),
+  mod3 <- lm(log(wealth) ~ treatment:tpost_D:tpost + treatment*tpost_D + 
+               tpost + as.factor(year) + as.factor(FIPS),
              data = my_df)
   
-  mod4 <- lm(log(distribution) ~ treatment*tpost_D + treatment:tpost_D:tpost + 
-               as.factor(year) + as.factor(FIPS),
+  mod4 <- lm(log(distribution) ~ treatment:tpost_D:tpost + treatment*tpost_D + 
+               tpost + as.factor(year) + as.factor(FIPS),
              data = my_df)
   
-  mod5 <- lm(log(output) ~ treatment*tpost_D + treatment:tpost_D:tpost + 
-               as.factor(year) + as.factor(FIPS),
+  mod5 <- lm(log(output) ~ treatment:tpost_D:tpost + treatment*tpost_D + 
+               tpost + as.factor(year) + as.factor(FIPS),
              data = my_df)
   
-  mod6 <- lm(log(use) ~ treatment*tpost_D + treatment:tpost_D:tpost + 
-               as.factor(year) + as.factor(FIPS),
+  mod6 <- lm(log(use) ~ treatment:tpost_D:tpost + treatment*tpost_D + 
+               tpost + as.factor(year) + as.factor(FIPS),
              data = my_df)
   
-  mod7 <- lm(dependence ~ treatment*tpost_D + treatment:tpost_D:tpost + 
-               as.factor(year) + as.factor(FIPS),
+  mod7 <- lm(dependence ~ treatment:tpost_D:tpost + treatment*tpost_D + 
+               tpost + as.factor(year) + as.factor(FIPS),
              data = my_df)
   
   my_models = list(mod1, mod2, mod3, mod4, mod5, mod6, mod7)
   my_SE <- lapply(my_models, do_the_SE)
-  
   
   stargazer(mod1, mod2, mod3, mod4, mod5, mod6, mod7,
             title = paste("Hurricane Ike, Time Scaled---", 
@@ -1465,14 +1629,16 @@ regressions_4 <- function (my_df, table_description, table_output){
               "treatment:tpost_D:tpost",
               "treatment:tpost_D",
               "treatment",
-              "tpost_D"
+              "tpost_D",
+              "tpost"
             ),
             font.size = 'footnotesize',
             covariate.labels = c(
               "Disaster * Post Storm * Years After",
               "Disaster * Post Storm",
               "Disaster",
-              "Post Storm"
+              "Post Storm",
+              "Years After"
             ),
             dep.var.labels = c(
               "Density",
@@ -1526,7 +1692,7 @@ regressions_4 <- function (my_df, table_description, table_output){
     )
   
   return(out_df)
-  
+
 }
 
 mod4a_coefs <- regressions_4(df_storm, "Unbalanced", "reg4_unbalanced.tex")
@@ -1628,7 +1794,7 @@ rm(all_mods, mod1a_coefs, mod1b_coefs, mod2a_coefs, mod2b_coefs,
 regressions_1 <- function (my_df, placebo_year){
   
   my_df <- my_df %>% mutate(
-    year = as.numeric(year) + 1999,
+    year = as.numeric(year),
     tpost_D = ifelse(year >= placebo_year, 1, 0)
   )
   
@@ -1716,7 +1882,7 @@ regressions_1 <- function (my_df, placebo_year){
 regressions_2 <- function (my_df, placebo_year){
   
   my_df <- my_df %>% mutate(
-    year = as.numeric(year) + 1999,
+    year = as.numeric(year),
     tpost_D = ifelse(year >= placebo_year, 1, 0)
   )
   
@@ -1804,7 +1970,7 @@ regressions_2 <- function (my_df, placebo_year){
 regressions_3 <- function (my_df, placebo_year){
   
   my_df <- my_df %>% mutate(
-    year = as.numeric(year) + 1999,
+    year = as.numeric(year),
     tpost_D = ifelse(year >= placebo_year, 1, 0)
   )
   
@@ -1902,37 +2068,37 @@ regressions_4 <- function (my_df, placebo_year){
   my_df <- my_df %>% 
     rowwise %>% 
     mutate(
-      year = as.numeric(year) + 1999,
+      year = as.numeric(year),
       tpost_D = ifelse(year >= placebo_year, 1, 0),
       tpost = max(year - placebo_year, 0)
     )
   
-  mod1 <- lm(log(density) ~ treatment*tpost_D + treatment:tpost_D:tpost + 
-               as.factor(year) + as.factor(FIPS),
+  mod1 <- lm(log(density) ~ treatment:tpost_D:tpost + treatment*tpost_D + 
+               tpost + as.factor(year) + as.factor(FIPS),
              data = my_df)
   
-  mod2 <- lm(log(concentration) ~ treatment*tpost_D + treatment:tpost_D:tpost + 
-               as.factor(year) + as.factor(FIPS),
+  mod2 <- lm(log(concentration) ~ treatment:tpost_D:tpost + treatment*tpost_D + 
+               tpost + as.factor(year) + as.factor(FIPS),
              data = my_df)
   
-  mod3 <- lm(log(wealth) ~ treatment*tpost_D + treatment:tpost_D:tpost + 
-               as.factor(year) + as.factor(FIPS),
+  mod3 <- lm(log(wealth) ~ treatment:tpost_D:tpost + treatment*tpost_D + 
+               tpost + as.factor(year) + as.factor(FIPS),
              data = my_df)
   
-  mod4 <- lm(log(distribution) ~ treatment*tpost_D + treatment:tpost_D:tpost + 
-               as.factor(year) + as.factor(FIPS),
+  mod4 <- lm(log(distribution) ~ treatment:tpost_D:tpost + treatment*tpost_D + 
+               tpost + as.factor(year) + as.factor(FIPS),
              data = my_df)
   
-  mod5 <- lm(log(output) ~ treatment*tpost_D + treatment:tpost_D:tpost + 
-               as.factor(year) + as.factor(FIPS),
+  mod5 <- lm(log(output) ~ treatment:tpost_D:tpost + treatment*tpost_D + 
+               tpost + as.factor(year) + as.factor(FIPS),
              data = my_df)
   
-  mod6 <- lm(log(use) ~ treatment*tpost_D + treatment:tpost_D:tpost + 
-               as.factor(year) + as.factor(FIPS),
+  mod6 <- lm(log(use) ~ treatment:tpost_D:tpost + treatment*tpost_D + 
+               tpost + as.factor(year) + as.factor(FIPS),
              data = my_df)
   
-  mod7 <- lm(dependence ~ treatment*tpost_D + treatment:tpost_D:tpost + 
-               as.factor(year) + as.factor(FIPS),
+  mod7 <- lm(dependence ~ treatment:tpost_D:tpost + treatment*tpost_D + 
+               tpost + as.factor(year) + as.factor(FIPS),
              data = my_df)
   
   my_models = list(mod1, mod2, mod3, mod4, mod5, mod6, mod7)
