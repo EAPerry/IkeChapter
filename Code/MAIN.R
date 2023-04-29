@@ -3,7 +3,7 @@
 #:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 # 
 # Contributor(s): Brenna Jungers, Evan Perry, Drew Westberg
-# Last Revised: 2023-03-30
+# Last Revised: 2023-04-02
 # 
 # Purpose: The purpose of this script is to clean, organize, and summarize key 
 # data related to the impact of natural disasters on local charitable giving. 
@@ -568,9 +568,10 @@ main_df <- main_df %>%
 ### The Lolipop Plot -----------------------------------------------------------
 #:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
+# Panel A
 temp <- main_df %>% 
   filter(treatment == 1) %>% 
-  filter(year == 2007 | year == 2009) %>% 
+  filter(year == 2007 | year == 2009 | year == 2011 | year == 2013) %>% 
   group_by(year) %>% 
   summarise(
     density = mean(density),
@@ -584,40 +585,128 @@ temp <- main_df %>%
 
 temp <- as.data.frame(t(temp))
 temp$variable <- rownames(temp)
-colnames(temp) <- c("pre","post","variable")
-temp <- temp[temp$variable != "year",]
+rownames(temp) <- NULL
+colnames(temp) <- temp[1,]
+temp <- temp[-1,]
 
 # Rescale the variables
 temp <- temp %>% 
   mutate(
-    post = (post - pre)/pre,
-    pre = 0
+    effect_2009 = (`2009`-`2007`)/`2007`,
+    effect_2011 = (`2011`-`2007`)/`2007`,
+    effect_2013 = (`2013`-`2007`)/`2007`
   )
 
 l <- c("dependence", "use", "output", "distribution", "wealth", 
        "concentration", "density")
 
-temp$variable <- factor(temp$variable, levels= l)
+temp$variable <- factor(temp$year, levels= l)
 
-png("Results/Figures/lineplot.png", width=6, height = 4, units="in",
-    res=600)
-ggplot(temp, aes(x = post, y =  variable)) +
-  geom_segment( aes(x=pre ,xend=post, y=variable, yend=variable), color="grey", 
-                lwd = 1) +
-  geom_vline(xintercept = 0) +
-  geom_point(size=5, color= natparks.pals("Yellowstone", 1, type = "discrete")) +
-  scale_y_discrete(labels = str_to_title(l)) + 
-  scale_x_continuous(labels = scales::percent) + 
+temp <- temp %>% select(variable, effect_2009, effect_2011, effect_2013)
+temp <- temp %>% 
+  pivot_longer(cols=2:4, names_to = "year", values_to = "change")
+temp$ref <- rep(0,nrow(temp))
+temp$year <- factor(temp$year, levels = c("effect_2013", "effect_2011", "effect_2009"))
+
+png("Results/Figures/lineplot_revised.png", width=6, height=5, 
+    units="in", res=500)
+ggplot(temp, aes(y=variable, x=change)) +
+  geom_linerange(
+    aes(y = variable, xmin=ref, xmax=change, color=year), 
+    position = position_dodge(width = .5),
+    lwd=1) + 
+  geom_point(size=3, aes(color=year), position = position_dodge(width=0.5)) +
+  xlab("\nPercent Change") +
+  scale_y_discrete(labels = str_to_title(l)) +
+  scale_x_continuous(labels = scales::percent) +
+  scale_color_manual(
+    values = natparks.pals("Yellowstone", 3, type = "discrete"),
+    labels=rev(c("2007-2009","2007-2011","2007-2013"))
+    ) +
   theme_bw() +
   theme(
     panel.grid.minor.y = element_blank(),
     panel.grid.major.y = element_blank(),
     axis.text.y = element_text(face="bold"),
-    axis.title.y = element_blank()
-  ) + 
-  xlab("\n% Change 2007 to 2009, Impacted Counties")
+    axis.title.y = element_blank(),
+    legend.position = "bottom",
+    legend.title = element_blank()
+  )
 dev.off()
 
+
+# p1 <- ggplot(temp, aes(x = post, y =  variable)) +
+#   geom_segment( aes(x=pre ,xend=post, y=variable, yend=variable), color="grey", 
+#                 lwd = 1) +
+#   geom_vline(xintercept = 0) +
+#   geom_point(size=5, color= natparks.pals("Yellowstone", 1, type = "discrete")) +
+#   scale_y_discrete(labels = str_to_title(l)) + 
+#   scale_x_continuous(labels = scales::percent) + 
+#   theme_bw() +
+#   theme(
+#     panel.grid.minor.y = element_blank(),
+#     panel.grid.major.y = element_blank(),
+#     axis.text.y = element_text(face="bold"),
+#     axis.title.y = element_blank()
+#   ) + 
+#   xlab("\n% Change 2007 to 2009, Impacted Counties")
+# dev.off()
+
+# # Panel B
+# temp <- main_df %>% 
+#   filter(treatment == 1) %>% 
+#   filter(year == 2007 | year == 2013) %>% 
+#   group_by(year) %>% 
+#   summarise(
+#     density = mean(density),
+#     concentration = mean(concentration),
+#     wealth = mean(wealth),
+#     distribution = mean(distribution),
+#     output = mean(output),
+#     use = mean(use),
+#     dependence = mean(dependence)
+#   )
+# 
+# temp <- as.data.frame(t(temp))
+# temp$variable <- rownames(temp)
+# colnames(temp) <- c("pre","post","variable")
+# temp <- temp[temp$variable != "year",]
+# 
+# # Rescale the variables
+# temp <- temp %>% 
+#   mutate(
+#     post = (post - pre)/pre,
+#     pre = 0
+#   )
+# 
+# temp$variable <- factor(temp$variable, levels= l)
+# 
+# p2 <- ggplot(temp, aes(x = post, y =  variable)) +
+#   geom_segment( aes(x=pre ,xend=post, y=variable, yend=variable), color="grey", 
+#                 lwd = 1) +
+#   geom_vline(xintercept = 0) +
+#   geom_point(size=5, color= natparks.pals("Yellowstone", 1, type = "discrete")) +
+#   scale_y_discrete(labels = str_to_title(l)) + 
+#   scale_x_continuous(labels = scales::percent) + 
+#   theme_bw() +
+#   theme(
+#     panel.grid.minor.y = element_blank(),
+#     panel.grid.major.y = element_blank(),
+#     axis.text.y = element_text(face="bold"),
+#     axis.title.y = element_blank()
+#   ) + 
+#   xlab("\n% Change 2007 to 2013, Impacted Counties")
+# 
+# 
+# # png("Results/Figures/differenced_pop_weighted.png", width=8, height=8, 
+# #     units="in", res=450)
+# print({
+#   ggarrange(
+#     p1, p2, 
+#     ncol = 2, nrow = 1,
+#     labels = c("A","B"),legend = "bottom")
+# })
+# # dev.off()
 
 #:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
@@ -1312,6 +1401,7 @@ regressions_1 <- function (my_df, table_description, table_output){
 mod1a_coefs <- regressions_1(df_storm, "Unbalanced", "reg1_unbalanced.tex")
 mod1b_coefs <- regressions_1(b_df_storm, "Balanced", "reg1_balanced.tex")
 
+
 #:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
 
@@ -1779,6 +1869,143 @@ rm(all_mods, mod1a_coefs, mod1b_coefs, mod2a_coefs, mod2b_coefs,
    mod3a_coefs, mod3b_coefs, mod3c_coefs, mod3d_coefs, mod3e_coefs, mod3f_coefs,
    mod4a_coefs, mod4b_coefs, temp
 )
+
+#:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+
+#:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+## The Special DiD Table -------------------------------------------------------
+#:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+did_est <- function (my_df, label){
+  
+  moda <- lm(log(CONT) ~ treatment*tpost_D + 
+               as.factor(year) + as.factor(FIPS),
+             data = my_df)
+  
+  modb <- lm(log(CONT/pop) ~ treatment*tpost_D + 
+               as.factor(year) + as.factor(FIPS),
+             data = my_df)
+  
+  mod1 <- lm(log(density) ~ treatment*tpost_D + 
+               as.factor(year) + as.factor(FIPS),
+             data = my_df)
+  
+  mod2 <- lm(log(concentration) ~ treatment*tpost_D + 
+               as.factor(year) + as.factor(FIPS),
+             data = my_df)
+  
+  mod3 <- lm(log(wealth) ~ treatment*tpost_D + 
+               as.factor(year) + as.factor(FIPS),
+             data = my_df)
+  
+  mod4 <- lm(log(distribution) ~ treatment*tpost_D + 
+               as.factor(year) + as.factor(FIPS),
+             data = my_df)
+  
+  mod5 <- lm(log(output) ~ treatment*tpost_D + 
+               as.factor(year) + as.factor(FIPS),
+             data = my_df)
+  
+  mod6 <- lm(log(use) ~ treatment*tpost_D + 
+               as.factor(year) + as.factor(FIPS),
+             data = my_df)
+  
+  mod7 <- lm(log(dependence) ~ treatment*tpost_D + 
+               as.factor(year) + as.factor(FIPS),
+             data = my_df)
+  
+  my_models = list(moda, modb, mod1, mod2, mod3, mod4, mod5, mod6, mod7)
+  my_SE <- lapply(my_models, do_the_SE)
+  
+  # Main Coefficient Reporting dataframe
+  model_num <- rep(label, 9)
+  outcome <- c(
+    "Contributions",
+    "Contributions per capita",
+    "Density",
+    "Concentration",
+    "Wealth",
+    "Distribution",
+    "Output",
+    "Use",
+    "Dependence"
+  )
+  
+  main_coefs <- c(
+    moda$coefficients["treatment:tpost_D"],
+    modb$coefficients["treatment:tpost_D"],
+    mod1$coefficients["treatment:tpost_D"],
+    mod2$coefficients["treatment:tpost_D"],
+    mod3$coefficients["treatment:tpost_D"],
+    mod4$coefficients["treatment:tpost_D"],
+    mod5$coefficients["treatment:tpost_D"],
+    mod6$coefficients["treatment:tpost_D"],
+    mod7$coefficients["treatment:tpost_D"]
+  )
+  
+  term_names <- data.frame(summary(moda)$aliased)
+  term_names <- rownames(term_names)
+  main_se <- lapply(my_SE, function (x) data.frame(term_names, x))
+  main_se <- bind_rows(main_se)
+  main_se <- main_se %>% 
+    filter(term_names == "treatment:tpost_D")
+  main_se <- main_se$x
+  
+  out_df <- data.frame(model_num, outcome, main_coefs, main_se)
+  colnames(out_df) <- c("model","outcome","coefs","se")
+  
+  return(out_df)
+  
+}
+
+tab_est <- list()
+tab_est[[1]] = did_est(df_storm %>% filter(year <= 2009), "2001-2009")
+tab_est[[2]] = did_est(df_storm %>% filter(year <= 2011), "2001-2011")
+tab_est[[3]] = did_est(df_storm %>% filter(year <= 2013), "2001-2013")
+tab_est <- bind_rows(tab_est)
+
+tab_est <- tab_est %>% 
+  mutate(
+    sig = case_when(
+      coefs/se > 1.645 & coefs/se < 1.96 ~ "*",
+      coefs/se > 1.96 & coefs/se < 2.326 ~ "**",
+      coefs/se > 2.326 ~ "***",
+      T ~ ""
+    )
+  )
+
+tab_est <- tab_est %>% 
+  pivot_longer(cols = 3:4, names_to = "stat", values_to = "my_est") %>% 
+  mutate(
+    sig = ifelse(stat == "se", "", sig),
+    my_est = paste(round(my_est, 3), sig, sep="")
+  ) %>% 
+  select(-c(sig))
+
+tab_est <- tab_est %>% 
+  pivot_wider(names_from = "model", values_from = "my_est")
+
+colnames(tab_est) <- c("Outcome", "Stat", "2001-2009", "2001-2011", "2001-2013")
+
+tab_est <- tab_est %>%
+  mutate(
+    `2001-2009` = ifelse(
+      `Stat` == "se", paste("(", `2001-2009`, ")", sep=""), as.character(`2001-2009`)
+    ),
+    `2001-2011` = ifelse(
+      `Stat` == "se", paste("(", `2001-2011`, ")", sep=""), as.character(`2001-2011`)
+    ),
+    `2001-2013` = ifelse(
+      `Stat` == "se", paste("(", `2001-2013`, ")", sep=""), as.character(`2001-2013`)
+    ),
+    Outcome = ifelse(
+      `Stat` == "se", "", Outcome
+    )
+  ) %>% 
+  select(-c(Stat))
+
+stargazer(tab_est, summary = F, rownames = F)
 
 #:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
