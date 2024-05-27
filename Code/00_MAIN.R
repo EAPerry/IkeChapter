@@ -12,42 +12,6 @@
 # on the data.
 # 
 # 
-# Input files: 
-# 
-# nccs.csv : Consolidated data from NCCS. Raw data from NCCS is too large to 
-#     upload to GitHub, so this is the consolidated data. 
-# 
-# 2020_Planning_Data.csv : County-level census data from the 2010 decennial
-#     Census and the 2014 American Community Survey. Use selected variables for
-#     perspective on demographic makeup of counties.
-#
-# co-est2009-alldata.csv : County-level annual population estimates from 2000 - 
-#     2009. 
-#
-# co-est2019-alldata.csv : County-level annual population estimates from 2010 - 
-#     2019. 
-#     
-# sf12010countydistance500miles.csv : This file contains the distances of every 
-#     pair of counties that are within 500 miles of each other.
-# 
-# FEMA_Disasters.csv : All disaster declaration records at the county level from
-#     FEMA. 
-# 
-# hurricanes.csv : A hand-cleaned file that lists the disaster numbers for all
-#     relevant hurricanes.
-# 
-# 
-# Output files: 
-# 
-# cleaned_data.csv : Cleaned data incorporating the data listed above. This 
-#     is panel data with each observation representing a county-year.
-#
-# summary_stats.tex : Descriptive statistics table.
-#
-# All the LaTeX tables in the Results/Regression Tables subdirectory.
-# All the figures in the Results/Figures subdirectory.
-# All the figures in the Results/Robustness Checks subdirectory.
-# 
 # Outline: (Crtl + Shift + O in RStudio) 
 #   1. Code to Change When Replicating
 #   2. Importing Packages and Setup
@@ -64,7 +28,8 @@
 #:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
 # Set your working directory
-#setwd("C:/Users/eaper/CoeRA/IkeChapter") #not needed - tied to Rproj.
+# not needed - tied to Rproj.
+# setwd("C:/Users/eaper/CoeRA/IkeChapter") 
 
 #:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
@@ -85,17 +50,24 @@ library(tidycensus)
 library(tmap)
 library(tmaptools)
 # Estimation
-library(estimatr)
-library(plm)
+library(fixest)
 # Aesthetics
 library(stargazer)
 library(ggpubr)
 library(NatParksPalettes)
 
-options(scipen = 9)    # Get rid of scientific notation
+options(scipen = 99)    # Get rid of scientific notation
+
+# Set some color palettes
+theme_set(theme_bw())
+options(ggplot2.continuous.colour= natparks.pals("Yellowstone", 6, type = "continuous"))
+options(ggplot2.continuous.fill = natparks.pals("Yellowstone", 6, type = "continuous"))
+options(ggplot2.discrete.colour= natparks.pals("Yellowstone", 6, type = "discrete"))
+options(ggplot2.discrete.fill = natparks.pals("Yellowstone", 6, type = "discrete"))
+
 
 #:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
- 
+
 
 #:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 # Section 1: Data Cleaning -----------------------------------------------------

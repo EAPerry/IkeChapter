@@ -22,7 +22,7 @@ main_df <- read_csv("Results/cleaned_filtered_data.csv")
 # Panel A
 temp <- main_df %>% 
   filter(treatment == 1) %>% 
-  filter(year == 2007 | year == 2009 | year == 2011 | year == 2013) %>% 
+  filter(year %in% c(2007, 2009, 2011, 2013)) %>% 
   group_by(year) %>% 
   summarise(
     density = mean(density),
@@ -69,7 +69,6 @@ v <- ggplot(temp, aes(y=variable, x=change)) +
     values = natparks.pals("Yellowstone", 3, type = "discrete"),
     labels=rev(c("2007-2009","2007-2011","2007-2013"))
   ) +
-  theme_bw() +
   theme(
     panel.grid.minor.y = element_blank(),
     panel.grid.major.y = element_blank(),
