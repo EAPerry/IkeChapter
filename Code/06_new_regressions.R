@@ -195,7 +195,7 @@ yvars <- c("output", "density")
 my_reg <- function(outcome, rhs, fe, sample_df){
   
   f = as.formula(paste(outcome, '~', rhs, "|", fe))
-  reg_results = feols(f, sample_df, ~FIPS)
+  reg_results = feols(f, sample_df, vcov = "hc1")
   return(reg_results)
   
 }
