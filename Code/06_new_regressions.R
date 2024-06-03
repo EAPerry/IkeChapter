@@ -195,7 +195,7 @@ yvars <- c("output", "density")
 my_reg <- function(outcome, rhs, fe, sample_df){
   
   f = as.formula(paste(outcome, '~', rhs, "|", fe))
-  reg_results = feols(f, sample_df)
+  reg_results = feols(f, sample_df, ~FIPS)
   return(reg_results)
   
 }
@@ -235,7 +235,8 @@ df <- df %>%
     log_output = log(output),
     log_density = log(density),
     log_fixedcont = log(fixedcont),
-    log_pop = log(pop)
+    log_pop = log(pop),
+    ATT = post*treatment              #specify ATT for marginal effects plotting
   )
 
 # And make a little data dictionary
@@ -249,7 +250,8 @@ var_labs <- c(
   log_output = "log Output",
   log_density = "log Density",
   dependence = "Dependence",
-  log_pop = "log Population"
+  log_pop = "log Population",
+  ATT = "average treatment effect on the treated"
 )
 
 #:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -259,7 +261,7 @@ var_labs <- c(
 #:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
 basicdid <- my_table(
-  rhs = "treatment*post", 
+  rhs = "ATT + post + treatment", 
   fe = "as.factor(year) + as.factor(FIPS)",
   sample_df = df,
   filename = "Results/Regression Tables/eap_baseline.tex",
@@ -274,7 +276,7 @@ basicdid <- my_table(
 #:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
 intdid <- my_table(
-  rhs = "treatment:post:log_fixedcont + treatment*post + log_fixedcont",
+  rhs = "ATT:log_fixedcont + ATT + treatment + post + log_fixedcont",
   fe = "as.factor(year) + as.factor(FIPS)",
   sample_df = df %>% filter(is.finite(log_fixedcont)),
   filename = "Results/Regression Tables/eap_thru_2007cont.tex",
@@ -349,3 +351,35 @@ dev.off()
 
 #:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
+#:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+# Plot the marginal effects-----------------------------------------------------
+#:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+#Automatically clusters se by FIPS because that's built into model estimation
+slp1 <- plot_slopes(intdid[[1]],
+            variables = "ATT",
+            condition = "log_fixedcont") +
+  labs(x = "Log of 2007 Contributions",
+       y = "Average change in log(Output)") +
+  theme_bw() +
+  geom_hline(yintercept = 0)
+
+slp2 <- plot_slopes(intdid[[2]],
+                    variables = "ATT",
+                    condition = "log_fixedcont") +
+  labs(x = "Log of 2007 Contributions",
+       y = "Average change in log(Density)") +
+  theme_bw() +
+  geom_hline(yintercept = 0)
+
+slp3 <- plot_slopes(intdid[[3]],
+                    variables = "ATT",
+                    condition = "log_fixedcont") +
+  labs(x = "Log of 2007 Contributions",
+       y = "Average change in Resource Dependence") +
+  theme_bw() +
+  geom_hline(yintercept = 0)
+
+slopesplot <- ggarrange(slp1, slp2, slp3, nrow = 3)
+annotate_figure(slopesplot, 
+                top = text_grob("Average Changes in Nonprofit Indicators Post-Hurricane by Scale of Pre-Disaster GC",
+                                face = "bold", size = 14))
