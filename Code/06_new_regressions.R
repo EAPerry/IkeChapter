@@ -36,7 +36,7 @@ rm(list = ls())
 # 
 
 # Read in data
-df <- read_csv('Results/cleaned_filtered_data.csv')
+#df <- read_csv('Results/cleaned_filtered_data.csv')
 
 #:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
@@ -354,14 +354,36 @@ dev.off()
 #:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 # Plot the marginal effects-----------------------------------------------------
 #:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-#Automatically clusters se by FIPS because that's built into model estimation
+#Automatically uses het robust se because that's built into model estimation
+#Extract estimates at specific values of log_fixedcont for graphing
+slopeest <- list()
+for (i in 1:3){
+  slopeest[[i]]<- slopes(intdid[[i]], variables = "ATT",
+                         newdata = datagrid(log_fixedcont = c(5, 10, 15, 20)))
+
+  if (i<3){
+    slopeest[[i]] <- slopeest[[i]] %>%
+      mutate(pct = case_when(
+        estimate > 0 ~ paste0(round(exp(estimate)*100,0),"%"),
+        TRUE ~ paste0("-",round((1-exp(estimate))*100,0),"%")))
+  } else {
+    slopeest[[i]] <- slopeest[[i]] %>% 
+      mutate(pct = round(estimate,0))
+  }
+}
+
 slp1 <- plot_slopes(intdid[[1]],
             variables = "ATT",
             condition = "log_fixedcont") +
   labs(x = "Log of 2007 Contributions",
        y = "Average change in log(Output)") +
   theme_bw() +
-  geom_hline(yintercept = 0)
+  geom_hline(yintercept = 0) +
+  geom_point(slopeest[[1]], mapping = aes(x=log_fixedcont, y=estimate)) +
+  annotate("text", x=5,  y=slopeest[[1]][1,'estimate']+0.1, label = slopeest[[1]][1,'pct']) +
+  annotate("text", x=10, y=slopeest[[1]][2,'estimate']+0.1, label = slopeest[[1]][2,'pct']) +
+  annotate("text", x=15, y=slopeest[[1]][3,'estimate']+0.1, label = slopeest[[1]][3,'pct']) +
+  annotate("text", x=20, y=slopeest[[1]][4,'estimate']+0.1, label = slopeest[[1]][4,'pct'])
 
 slp2 <- plot_slopes(intdid[[2]],
                     variables = "ATT",
@@ -369,7 +391,12 @@ slp2 <- plot_slopes(intdid[[2]],
   labs(x = "Log of 2007 Contributions",
        y = "Average change in log(Density)") +
   theme_bw() +
-  geom_hline(yintercept = 0)
+  geom_hline(yintercept = 0) +
+  geom_point(slopeest[[2]], mapping = aes(x=log_fixedcont, y=estimate)) +
+  annotate("text", x=5,  y=slopeest[[2]][1,'estimate']+0.1, label = slopeest[[2]][1,'pct']) +
+  annotate("text", x=10, y=slopeest[[2]][2,'estimate']+0.1, label = slopeest[[2]][2,'pct']) +
+  annotate("text", x=15, y=slopeest[[2]][3,'estimate']+0.1, label = slopeest[[2]][3,'pct']) +
+  annotate("text", x=20, y=slopeest[[2]][4,'estimate']+0.07, label = slopeest[[2]][4,'pct'])
 
 slp3 <- plot_slopes(intdid[[3]],
                     variables = "ATT",
@@ -377,7 +404,12 @@ slp3 <- plot_slopes(intdid[[3]],
   labs(x = "Log of 2007 Contributions",
        y = "Average change in Resource Dependence") +
   theme_bw() +
-  geom_hline(yintercept = 0)
+  geom_hline(yintercept = 0) +
+  geom_point(slopeest[[3]], mapping = aes(x=log_fixedcont, y=estimate)) +
+  annotate("text", x=5,  y=slopeest[[3]][1,'estimate']-2, label = slopeest[[3]][1,'pct']) +
+  annotate("text", x=10, y=slopeest[[3]][2,'estimate']-2, label = slopeest[[3]][2,'pct']) +
+  annotate("text", x=15, y=slopeest[[3]][3,'estimate']-2, label = slopeest[[3]][3,'pct']) +
+  annotate("text", x=20, y=slopeest[[3]][4,'estimate']+2, label = slopeest[[3]][4,'pct'])
 
 slopesplot <- ggarrange(slp1, slp2, slp3, nrow = 3)
 annotate_figure(slopesplot, 
