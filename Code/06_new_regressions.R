@@ -230,14 +230,19 @@ my_table <- function(rhs, fe, sample_df, filename, title) {
 df <- read_csv('Results/cleaned_filtered_data.csv')
 
 # Give some log transforms to the data (a little treat)
+center <- df %>% filter(is.finite(log(fixedcont)))
+center <- mean(log(center$fixedcont))
 df <- df %>% 
   mutate(
     log_output = log(output),
     log_density = log(density),
     log_fixedcont = log(fixedcont),
+    log_fixedcont_centered = log_fixedcont - center,
     log_pop = log(pop),
     ATT = post*treatment              #specify ATT for marginal effects plotting
   )
+rm(center)
+
 
 # And make a little data dictionary
 var_labs <- c(
@@ -251,7 +256,9 @@ var_labs <- c(
   log_density = "log Density",
   dependence = "Dependence",
   log_pop = "log Population",
-  ATT = "average treatment effect on the treated"
+  # ATT = "average treatment effect on the treated"
+  ATT = "Disaster $\\times$ Post",
+  log_fixedcont_centered = "log GC$_{2007}$ (Centered)"
 )
 
 #:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -276,9 +283,9 @@ basicdid <- my_table(
 #:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
 intdid <- my_table(
-  rhs = "ATT:log_fixedcont + ATT + treatment + post + log_fixedcont",
+  rhs = "ATT:log_fixedcont_centered + ATT + treatment + post + log_fixedcont_centered",
   fe = "as.factor(year) + as.factor(FIPS)",
-  sample_df = df %>% filter(is.finite(log_fixedcont)),
+  sample_df = df %>% filter(is.finite(log_fixedcont_centered)),
   filename = "Results/Regression Tables/eap_thru_2007cont.tex",
   title = "Heterogenous Effects Through Contributions"
 )
@@ -292,34 +299,34 @@ intdid <- my_table(
 # Plot the coefficients --------------------------------------------------------
 #:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
-model1_coefs <- coefplot(basicdid)[['prms']]
-model1_coefs$outcome <- c("Output", "Density", "Dependence")
-model1_coefs$model <- 1
+# model1_coefs <- coefplot(basicdid)[['prms']]
+# model1_coefs$outcome <- c("Output", "Density", "Dependence")
+# model1_coefs$model <- 1
 
 model2_coefs <- coefplot(intdid)[['prms']] %>% 
-  filter(str_detect(estimate_names, "treatment")) 
+  filter(str_detect(estimate_names, "ATT")) 
 model2_coefs$outcome <- c("Output", "Density", "Dependence")
 model2_coefs$model <- 2
 
-my_coefs <- bind_rows(model1_coefs, model2_coefs)
+my_coefs <- bind_rows(model2_coefs)
 my_coefs <- my_coefs %>% 
   mutate(y = case_when(
-           outcome != "Dependence" & estimate_names == "treatment:post"  ~ (exp(y) - 1)*100,
-           outcome != "Dependence" & estimate_names == "treatment:post:log_fixedcont" ~ (1.1^(y) -1)*100,
-           outcome == "Dependence" & estimate_names == "treatment:post" ~ y,
-           outcome == "Dependence" & estimate_names == "treatment:post:log_fixedcont" ~ y * log(1.1)
+           outcome != "Dependence" & estimate_names == "ATT"  ~ (exp(y) - 1)*100,
+           outcome != "Dependence" & estimate_names == "ATT:log_fixedcont_centered" ~ (1.1^(y) -1)*100,
+           outcome == "Dependence" & estimate_names == "ATT" ~ y,
+           outcome == "Dependence" & estimate_names == "ATT:log_fixedcont_centered" ~ y * log(1.1)
          ),
          ci_low = case_when(
-           outcome != "Dependence" & estimate_names == "treatment:post" ~ (exp(ci_low) - 1)*100,
-           outcome != "Dependence" & estimate_names == "treatment:post:log_fixedcont" ~ (1.1^(ci_low) -1)*100,
-           outcome == "Dependence" & estimate_names == "treatment:post" ~ ci_low,
-           outcome == "Dependence" & estimate_names == "treatment:post:log_fixedcont" ~ ci_low * log(1.1)
+           outcome != "Dependence" & estimate_names == "ATT" ~ (exp(ci_low) - 1)*100,
+           outcome != "Dependence" & estimate_names == "ATT:log_fixedcont_centered" ~ (1.1^(ci_low) -1)*100,
+           outcome == "Dependence" & estimate_names == "ATT" ~ ci_low,
+           outcome == "Dependence" & estimate_names == "ATT:log_fixedcont_centered" ~ ci_low * log(1.1)
          ),
          ci_high = case_when(
-           outcome != "Dependence" & estimate_names == "treatment:post" ~ (exp(ci_high) - 1)*100,
-           outcome != "Dependence" & estimate_names == "treatment:post:log_fixedcont" ~ (1.1^(ci_high) -1)*100,
-           outcome == "Dependence" & estimate_names == "treatment:post" ~ ci_high,
-           outcome == "Dependence" & estimate_names == "treatment:post:log_fixedcont" ~ ci_high * log(1.1)
+           outcome != "Dependence" & estimate_names == "ATT" ~ (exp(ci_high) - 1)*100,
+           outcome != "Dependence" & estimate_names == "ATT:log_fixedcont_centered" ~ (1.1^(ci_high) -1)*100,
+           outcome == "Dependence" & estimate_names == "ATT" ~ ci_high,
+           outcome == "Dependence" & estimate_names == "ATT:log_fixedcont_centered" ~ ci_high * log(1.1)
          ))
 
 my_coefs$outcome <- factor(my_coefs$outcome, 
@@ -327,26 +334,48 @@ my_coefs$outcome <- factor(my_coefs$outcome,
 my_coefs$beta_hat <- paste0(my_coefs$model, my_coefs$estimate_names)
 
 
-tikzDevice::tikz("Results/Figures/coef_plot.tex", height = 3.5, width = 6)
+# tikzDevice::tikz("Results/Figures/coef_plot.tex", height = 3.5, width = 6)
+# ggplot(my_coefs) +
+#   geom_point(aes(x = as.factor(beta_hat), y = y, color = as.factor(beta_hat))) +
+#   geom_errorbar(aes(x = as.factor(beta_hat), ymin = ci_low, ymax = ci_high, color = as.factor(beta_hat))) +
+#   facet_wrap(~outcome, scales = "free_y",
+#              labeller = as_labeller(
+#                c(Output = "\\%-Change in Output", 
+#                  Density = "\\%-Change in Density", 
+#                  Dependence = "\\%-Point Change in Dependence")), 
+#              strip.position = "left") +
+#   labs(y = NULL) +
+#   labs(x = "") +
+#   scale_color_discrete(labels = c("Disaster times Post (Model 1)",
+#                                   "Disaster times Post (Model 2)",
+#                                   "Disaster times Post times Log GC (Model 2)")) +
+#   theme(strip.background = element_blank(), strip.placement = "outside", 
+#         legend.position = "bottom", axis.title.x = element_blank(), 
+#         axis.text.x=element_blank(), axis.ticks.x = element_blank(),
+#         legend.title = element_blank()) +
+#   guides(color=guide_legend(nrow=2,byrow=TRUE))
+# dev.off()
+
+
+tikzDevice::tikz("Results/Figures/coef_plot.tex", height = 2.5, width = 6)
 ggplot(my_coefs) +
-  geom_point(aes(x = as.factor(beta_hat), y = y, color = as.factor(beta_hat))) +
-  geom_errorbar(aes(x = as.factor(beta_hat), ymin = ci_low, ymax = ci_high, color = as.factor(beta_hat))) +
-  facet_wrap(~outcome, scales = "free_y",
+  geom_point(aes(y = as.factor(beta_hat), x = y, color = as.factor(beta_hat))) +
+  geom_errorbar(aes(y = as.factor(beta_hat), xmin = ci_low, xmax = ci_high, color = as.factor(beta_hat))) +
+  facet_wrap(~outcome, scales = "free_x",
              labeller = as_labeller(
                c(Output = "\\%-Change in Output", 
                  Density = "\\%-Change in Density", 
                  Dependence = "\\%-Point Change in Dependence")), 
-             strip.position = "left") +
-  labs(y = NULL) +
-  labs(x = "") +
-  scale_color_discrete(labels = c("Disaster times Post (Model 1)",
-                                  "Disaster times Post (Model 2)",
-                                  "Disaster times Post times Log GC (Model 2)")) +
+             strip.position = "top") +
+  labs(x = NULL) +
+  labs(y = "") +
+  scale_color_discrete(labels = c("Disaster times Post",
+                                  "Disaster times Post times Log GC")) +
   theme(strip.background = element_blank(), strip.placement = "outside", 
-        legend.position = "bottom", axis.title.x = element_blank(), 
-        axis.text.x=element_blank(), axis.ticks.x = element_blank(),
+        legend.position = "bottom", axis.title.y = element_blank(), 
+        axis.text.y=element_blank(), axis.ticks.y = element_blank(),
         legend.title = element_blank()) +
-  guides(color=guide_legend(nrow=2,byrow=TRUE))
+  guides(color=guide_legend(nrow=1,byrow=TRUE))
 dev.off()
 
 #:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::

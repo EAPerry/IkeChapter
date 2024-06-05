@@ -249,6 +249,15 @@ rm(county_shp, dist, fema, hurricanes, temp, counties_250, my_states, l)
 #:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
 
+#:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+# New Summary Stats ------------------------------------------------------------
+#:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+
+
+#:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+
 # #:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 # ### Summary Statistics Table (Old)
 # #:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -760,6 +769,36 @@ main_df %>%
 #:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 ## Concentration and Dependence Trends -----------------------------------------
 #:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+df <- read_csv('Results/cleaned_filtered_data.csv')
+df <- df %>% 
+  filter(year == 2007, is.finite(log(fixedcont)))
+  
+cor.test(log(df$output), log(df$fixedcont), method = "spearman")
+cor.test(log(df$density), log(df$fixedcont), method = "spearman")
+cor.test(df$dependence, log(df$fixedcont), method = "spearman")
+
+df <- read_csv('Results/cleaned_filtered_data.csv')
+df <- df %>% 
+  filter(year == 2007)
+df <- df %>% 
+  mutate(bottom_25 = fixedcont <= quantile(df$fixedcont, 0.25),
+         top_25 = fixedcont >= quantile(df$fixedcont, 0.75),)
+
+temp <- read_csv('Results/cleaned_filtered_data.csv')
+temp <- temp %>% 
+  mutate(bottom_25 = FIPS %in% df[df$bottom_25 ==1,]$FIPS,
+         top_25 =  FIPS %in% df[df$top_25 ==1,]$FIPS)
+
+temp <- temp %>% 
+  filter(bottom_25 == 1 | top_25 == 1) %>% 
+  group_by(bottom_25, top_25, year) %>% 
+  summarise(mean_revenue = mean(TOTREV),
+            mean_gc = mean(CONT)) %>% 
+  ungroup()
+
+
+
 
 ### Were larger (contributions) networks relatively more concentrated before 2008?
 
