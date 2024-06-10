@@ -203,7 +203,7 @@ my_reg <- function(outcome, rhs, fe, sample_df){
 # Make a proper table
 my_table <- function(rhs, fe, sample_df, filename, title) {
   
-  outcome_list <- list("log_output","log_density","dependence")
+  outcome_list <- list("log_output","log_density","dependence3")
   all_models <- lapply(outcome_list, function (x) my_reg(x , rhs, fe, sample_df))
   
   unlink(filename)
@@ -214,7 +214,8 @@ my_table <- function(rhs, fe, sample_df, filename, title) {
          file = filename,
          dict = var_labs,
          order = c("Disaster", "Post", "log GC"),
-         adjustbox = "max width = \\textwidth, center"
+         adjustbox = "max width = \\textwidth, center",
+         view = T
       )
   return(all_models)
 
@@ -230,18 +231,24 @@ my_table <- function(rhs, fe, sample_df, filename, title) {
 df <- read_csv('Results/cleaned_filtered_data.csv')
 
 # Give some log transforms to the data (a little treat)
-center <- df %>% filter(is.finite(log(fixedcont)))
-center <- mean(log(center$fixedcont))
+center1 <- df %>% filter(is.finite(log(fixedcont)))
+center1 <- mean(log(center1$fixedcont))
+
+center2 <- df %>% filter(fixedcont3 > 0) %>% filter(is.finite(log(fixedcont3)))
+center2 <- mean(log(center2$fixedcont3))
+
 df <- df %>% 
   mutate(
     log_output = log(output),
     log_density = log(density),
     log_fixedcont = log(fixedcont),
-    log_fixedcont_centered = log_fixedcont - center,
+    log_fixedcont_centered = log_fixedcont - center1,
+    log_fixedcont2 = log(fixedcont3),
+    log_fixedcont2_centered = log_fixedcont2 - center2,
     log_pop = log(pop),
     ATT = post*treatment              #specify ATT for marginal effects plotting
   )
-rm(center)
+rm(center1, center2)
 
 
 # And make a little data dictionary
@@ -255,10 +262,12 @@ var_labs <- c(
   log_output = "log Output",
   log_density = "log Density",
   dependence = "Dependence",
+  dependence3 = "Dependence",
   log_pop = "log Population",
   # ATT = "average treatment effect on the treated"
   ATT = "Disaster $\\times$ Post",
-  log_fixedcont_centered = "log GC$_{2007}$ (Centered)"
+  log_fixedcont_centered = "log GC$_{2007}$ (Centered)",
+  log_fixedcont2_centered = "log GC$_{2007}$ (Centered)"
 )
 
 #:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -272,7 +281,7 @@ basicdid <- my_table(
   fe = "as.factor(year) + as.factor(FIPS)",
   sample_df = df,
   filename = "Results/Regression Tables/eap_baseline.tex",
-  title = "Baseline Difference-in-Differences"
+  title = "Baseline TWFE"
   )
 
 #:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -283,9 +292,9 @@ basicdid <- my_table(
 #:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
 intdid <- my_table(
-  rhs = "ATT:log_fixedcont_centered + ATT + treatment + post + log_fixedcont_centered",
+  rhs = "ATT*log_fixedcont2_centered + ATT + treatment + post + log_fixedcont2_centered",
   fe = "as.factor(year) + as.factor(FIPS)",
-  sample_df = df %>% filter(is.finite(log_fixedcont_centered)),
+  sample_df = df %>% filter(is.finite(log_fixedcont2_centered)),
   filename = "Results/Regression Tables/eap_thru_2007cont.tex",
   title = "Heterogenous Effects Through Contributions"
 )
@@ -312,21 +321,21 @@ my_coefs <- bind_rows(model2_coefs)
 my_coefs <- my_coefs %>% 
   mutate(y = case_when(
            outcome != "Dependence" & estimate_names == "ATT"  ~ (exp(y) - 1)*100,
-           outcome != "Dependence" & estimate_names == "ATT:log_fixedcont_centered" ~ (1.1^(y) -1)*100,
+           outcome != "Dependence" & estimate_names == "ATT:log_fixedcont2_centered" ~ (1.1^(y) -1)*100,
            outcome == "Dependence" & estimate_names == "ATT" ~ y,
-           outcome == "Dependence" & estimate_names == "ATT:log_fixedcont_centered" ~ y * log(1.1)
+           outcome == "Dependence" & estimate_names == "ATT:log_fixedcont2_centered" ~ y * log(1.1)
          ),
          ci_low = case_when(
            outcome != "Dependence" & estimate_names == "ATT" ~ (exp(ci_low) - 1)*100,
-           outcome != "Dependence" & estimate_names == "ATT:log_fixedcont_centered" ~ (1.1^(ci_low) -1)*100,
+           outcome != "Dependence" & estimate_names == "ATT:log_fixedcont2_centered" ~ (1.1^(ci_low) -1)*100,
            outcome == "Dependence" & estimate_names == "ATT" ~ ci_low,
-           outcome == "Dependence" & estimate_names == "ATT:log_fixedcont_centered" ~ ci_low * log(1.1)
+           outcome == "Dependence" & estimate_names == "ATT:log_fixedcont2_centered" ~ ci_low * log(1.1)
          ),
          ci_high = case_when(
            outcome != "Dependence" & estimate_names == "ATT" ~ (exp(ci_high) - 1)*100,
-           outcome != "Dependence" & estimate_names == "ATT:log_fixedcont_centered" ~ (1.1^(ci_high) -1)*100,
+           outcome != "Dependence" & estimate_names == "ATT:log_fixedcont2_centered" ~ (1.1^(ci_high) -1)*100,
            outcome == "Dependence" & estimate_names == "ATT" ~ ci_high,
-           outcome == "Dependence" & estimate_names == "ATT:log_fixedcont_centered" ~ ci_high * log(1.1)
+           outcome == "Dependence" & estimate_names == "ATT:log_fixedcont2_centered" ~ ci_high * log(1.1)
          ))
 
 my_coefs$outcome <- factor(my_coefs$outcome, 

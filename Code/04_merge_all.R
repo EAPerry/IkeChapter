@@ -56,12 +56,16 @@ main_df <- main_df %>%
     # rev_npo = TOTREV/NONPROFITS,
     # Outcome Variables
     density = NONPROFITS/pop,
-    concentration = concentration,
-    wealth = TOTASS/NONPROFITS,
-    distribution = DIST,
+    # concentration = concentration,
+    # wealth = TOTASS/NONPROFITS,
+    # distribution = DIST,
     output = EXPS/pop,
-    use = CONT/NONPROFITS,
-    dependence = CONT/TOTREV * 100
+    # use = CONT/NONPROFITS,
+    CONT2 = CONT - GOVGT,
+    CONT3 = CONT - GOVGT - GOVSVC,
+    dependence = CONT/TOTREV * 100,
+    dependence2 = CONT2 / TOTREV * 100,
+    dependence3 = CONT3 / TOTREV * 100
   ) %>% 
   rename(
     year = FISYR
@@ -77,22 +81,19 @@ my_order <- c(
   "hit_year",
   "treatment",
   "NONPROFITS",
-  "CONT",
   "EXPS",
-  "GRPROF",
-  "INVINC",
-  "OTHINC",
   "TOTREV",
-  "TOTASS",
-  "LAND_AREA",
   "pop",
   "density",
-  "concentration",
-  "wealth",
-  "distribution",
   "output",
-  "use",
-  "dependence"
+  "CONT",
+  "CONT2",
+  "CONT3",
+  "dependence",
+  "dependence2",
+  "dependence3",
+  "GOVGT",
+  "GOVSVC"
 )
 
 # Order up
@@ -115,19 +116,15 @@ rm(my_order)
 # Quick Tidying
 df <- na.omit(main_df)
 
-# Remove 2014 -- it's bad
+# Just until 2012
 df <- df %>% 
-  filter(year < 2014)
+  filter(year <= 2012)
 
 df <- df %>% 
   filter(
     CONT > 0,
     EXPS > 0,
     TOTREV > 0,
-    TOTASS > 0, 
-    distribution < 5000,
-    distribution > 0,
-    wealth > 0,
     dependence < 100
   ) %>% 
   mutate(
@@ -137,12 +134,14 @@ df <- df %>%
 
 # List of outcome variables
 # leave out "dependence" because it is treated differently in regressions
-yvars <- c("density", "concentration", "wealth", "distribution", "output", "use")
+# yvars <- c("density", "wealth", "output")
 
 # Created a county-specific variable of contributions as of 2007
 df <- df %>% 
   group_by(FIPS) %>% 
-  mutate(fixedcont = sum(CONT * (year == 2007))) %>% 
+  mutate(fixedcont = sum(CONT * (year == 2007)),
+         fixedcont2 = sum(CONT2 * (year == 2007)),
+         fixedcont3 = sum(CONT3 * (year == 2007))) %>% 
   ungroup() %>% 
   filter(year!=2008) #partially treated
 

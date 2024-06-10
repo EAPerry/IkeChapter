@@ -15,6 +15,34 @@
 
 main_df <- read_csv("Results/cleaned_filtered_data.csv")
 
+
+#:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+# Comparing the various contributions measures ---------------------------------
+#:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+temp <- main_df %>% 
+  mutate(bad2 = CONT2 < 0,
+         bad3 = CONT3 < 0)
+mean(temp$bad2, na.rm = T)
+mean(temp$bad3, na.rm = T)
+
+
+temp <- main_df %>% 
+  group_by(year) %>% 
+  summarise(across(starts_with("CONT"), mean))
+ggplot(temp %>% pivot_longer(cols = starts_with("CONT"), names_to = "cont", values_to = "value"), 
+       aes(x = as.integer(year), y = value / 1000000, color = cont)) +
+  geom_line() +
+  geom_point() +
+  labs(y = "Mean County Countributions (M USD)\n", x = "") +
+  scale_x_continuous(breaks = 2000:2012) +
+  scale_color_manual(
+    values = natparks.pals("Yellowstone", 3, type = "discrete"),
+    labels = c("Contributions", "Contributions - Grants", "Contributions - Grants - Gov Services")) +
+  theme(legend.position = "bottom",
+        legend.title = element_blank())
+  
+
 #:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 ### The Lolipop Plot -----------------------------------------------------------
 #:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
