@@ -61,15 +61,12 @@ main_df <- main_df %>%
     # distribution = DIST,
     output = EXPS/pop,
     # use = CONT/NONPROFITS,
-    CONT2 = CONT - GOVGT,
-    CONT3 = CONT - GOVGT - GOVSVC,
-    dependence = CONT/TOTREV * 100,
+    CONT2 = CONT - GOVGT - GOVSVC,
+    dependence = CONT / TOTREV * 100,
     dependence2 = CONT2 / TOTREV * 100,
-    dependence3 = CONT3 / TOTREV * 100
+    dependence3 = CONT2 / CONT * 100
   ) %>% 
-  rename(
-    year = FISYR
-  )
+  rename(year = FISYR)
 
 # Last thing to do before we output the full dataset is order the columns
 my_order <- c(
@@ -88,7 +85,6 @@ my_order <- c(
   "output",
   "CONT",
   "CONT2",
-  "CONT3",
   "dependence",
   "dependence2",
   "dependence3",
@@ -123,6 +119,7 @@ df <- df %>%
 df <- df %>% 
   filter(
     CONT > 0,
+    CONT2 >= 0,
     EXPS > 0,
     TOTREV > 0,
     dependence < 100
@@ -140,8 +137,7 @@ df <- df %>%
 df <- df %>% 
   group_by(FIPS) %>% 
   mutate(fixedcont = sum(CONT * (year == 2007)),
-         fixedcont2 = sum(CONT2 * (year == 2007)),
-         fixedcont3 = sum(CONT3 * (year == 2007))) %>% 
+         fixedcont2 = sum(CONT2 * (year == 2007))) %>% 
   ungroup() %>% 
   filter(year!=2008) #partially treated
 
