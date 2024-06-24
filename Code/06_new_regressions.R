@@ -24,67 +24,14 @@ my_reg <- function(outcome, rhs, fe, sample_df){
   
 }
 
-# Make a proper table
-my_table <- function(rhs, fe, sample_df, filename, title) {
-  
-  # Each table will run the specification entered using log output, log density,
-  # and the revised dependence measure as the dependent variable
-  outcome_list <- list("log_output","log_density","dependence3")
-
-  all_models <- lapply(outcome_list, function (x) my_reg(x , rhs, fe, sample_df))
-  
-  unlink(filename)
-  etable(all_models,
-         vcov = "hc1",
-         tex = T,
-         title = title,
-         file = filename,
-         dict = var_labs,
-         order = c("Disaster", "Post", "log GC"),
-         adjustbox = "max width = \\textwidth, center",
-         view = T
-      )
-  return(all_models)
-
-}
-
-# Make a proper table for various dependence measures
-my_table_dependence <- function(rhs, fe, sample_df, filename, title) {
-  
-  outcome_list <- list("dependence","dependence2","dependence3")
-  
-  var_labs_alt <- var_labs
-  var_labs_alt["dependence"] = "Dependence (Cont / Revenue)"
-  var_labs_alt["dependence2"] = "Dependence (Giving / Revenue)"
-  var_labs_alt["dependence3"] = "Dependence (Giving / Cont)"
-  
-  all_models <- lapply(outcome_list, function (x) my_reg(x , rhs, fe, sample_df))
-  
-  unlink(filename)
-  etable(all_models,
-         vcov = "hc1",
-         tex = T,
-         title = title,
-         file = filename,
-         dict = var_labs_alt,
-         order = c("Disaster", "Post", "log GC"),
-         adjustbox = "max width = \\textwidth, center",
-         view = T
-  )
-  return(all_models)
-  
-}
-
-
 # Make the table but using the dependence variable that's computed as 
 # dependence = (giving / revenue)
-my_table_alt <- function(rhs, fe, sample_df, filename, title) {
+my_table <- function(rhs, fe, sample_df, filename, title) {
   
   outcome_list <- list("log_output","log_density","dependence2")
   
   var_labs_alt <- var_labs
-  var_labs_alt["dependence2"] = "Dependence (Giving / Revenue)"
-
+  
   all_models <- lapply(outcome_list, function (x) my_reg(x , rhs, fe, sample_df))
   
   unlink(filename)
@@ -101,7 +48,6 @@ my_table_alt <- function(rhs, fe, sample_df, filename, title) {
   return(all_models)
   
 }
-
 
 #:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
@@ -123,18 +69,18 @@ df <- df %>%
     ATT = post*treatment              #specify ATT for marginal effects plotting
   )
 
-# Create centered versions of the scaling variable(s)
-center1 <- df %>% filter(is.finite(log(fixedcont)))
-center1 <- mean(log(center1$fixedcont))
-center2 <- df %>% filter(fixedcont2> 0) %>% filter(is.finite(log(fixedcont2)))
-center2 <- mean(log(center2$fixedcont2))
-
-df <- df %>% 
-  mutate(
-    log_fixedcont_centered = log_fixedcont - center1,
-    log_fixedcont2_centered = log_fixedcont2 - center2
-  )
-rm(center1, center2)
+# # Create centered versions of the scaling variable(s)
+# center1 <- df %>% filter(is.finite(log(fixedcont)))
+# center1 <- mean(log(center1$fixedcont))
+# center2 <- df %>% filter(fixedcont2> 0) %>% filter(is.finite(log(fixedcont2)))
+# center2 <- mean(log(center2$fixedcont2))
+# 
+# df <- df %>% 
+#   mutate(
+#     log_fixedcont_centered = log_fixedcont - center1,
+#     log_fixedcont2_centered = log_fixedcont2 - center2
+#   )
+# rm(center1, center2)
 
 # And make a little data dictionary
 var_labs <- c(
@@ -151,10 +97,10 @@ var_labs <- c(
   dependence2 = "Dependence",
   dependence3 = "Dependence",
   log_pop = "log Population",
+  # log_fixedcont_centered = "log GC$_{2007}$ (Centered)",
+  # log_fixedcont2_centered = "log GC$_{2007}$ (Centered)",
   # ATT = "average treatment effect on the treated"
-  ATT = "Disaster $\\times$ Post",
-  log_fixedcont_centered = "log GC$_{2007}$ (Centered)",
-  log_fixedcont2_centered = "log GC$_{2007}$ (Centered)"
+  ATT = "Disaster $\\times$ Post"
 )
 
 #:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -165,10 +111,10 @@ var_labs <- c(
 #:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
 basicdid <- my_table(
-  rhs = "ATT + post + treatment", 
+  rhs = "post:treatment",
   fe = "as.factor(year) + as.factor(FIPS)",
   sample_df = df,
-  filename = "Results/Regression Tables/eap_baseline.tex",
+  filename = "Results/Regression Tables/eap_twfe.tex",
   title = "Baseline TWFE"
   )
 
@@ -185,70 +131,68 @@ basicdid <- my_table(
 
 ## Some of the interactions ----------------------------------------------------
 
-# Do not center the contributions scaling variable
-intdid <- my_table(
-  rhs = "ATT*log_fixedcont2 + ATT + treatment + post + log_fixedcont2",
-  fe = "as.factor(year) + as.factor(FIPS)",
-  sample_df = df %>% filter(is.finite(log_fixedcont2)),
-  filename = "Results/Regression Tables/eap_thru_2007cont.tex",
-  title = "Heterogenous Effects Through Contributions"
-)
-
-# Center the contributions scaling variable
-intdid_centered <- my_table(
-  rhs = "ATT*log_fixedcont2_centered + ATT + treatment + post + log_fixedcont2_centered",
-  fe = "as.factor(year) + as.factor(FIPS)",
-  sample_df = df %>% filter(is.finite(log_fixedcont2_centered)),
-  filename = "Results/Regression Tables/eap_thru_2007cont_centered.tex",
-  title = "Heterogenous Effects Through Contributions (Centered)"
-)
-# lol actually maybe i'm just dumb and centering it doesn't make any difference;
-# the scaling coefficient doesn't change, just the difference coefficient...
-
-
-## All of the interactions -----------------------------------------------------
-
-# Do not center the contributions scaling variable
-intdid_allint <- my_table(
-  rhs = "post*treatment*log_fixedcont2",
-  fe = "as.factor(year) + as.factor(FIPS)",
-  sample_df = df %>% filter(is.finite(log_fixedcont2)),
-  filename = "Results/Regression Tables/eap_intdid_allint.tex",
-  title = "Heterogenous Effects Through Contributions -- All Interactions"
-)
-
-## Check dependence measures ---------------------------------------------------
-
-# Do not center the contributions scaling variable
-dep1 <- my_table_dependence(
-  rhs = "ATT*log_fixedcont2",
-  fe = "as.factor(year) + as.factor(FIPS)",
-  sample_df = df %>% filter(is.finite(log_fixedcont2)),
-  filename = "Results/Regression Tables/eap_dep1.tex",
-  title = "Heterogenous Effects Through Contributions, Various Dependence"
-)
-
-dep2 <- my_table_dependence(
-  rhs = "treatment*post*log_fixedcont2",
-  fe = "as.factor(year) + as.factor(FIPS)",
-  sample_df = df %>% filter(is.finite(log_fixedcont2)),
-  filename = "Results/Regression Tables/eap_dep2.tex",
-  title = "Heterogenous Effects Through Contributions, Various Dependence, All Interactions"
-)
+# # Do not center the contributions scaling variable
+# intdid <- my_table(
+#   rhs = "ATT*log_fixedcont2 + ATT + treatment + post + log_fixedcont2",
+#   fe = "as.factor(year) + as.factor(FIPS)",
+#   sample_df = df %>% filter(is.finite(log_fixedcont2)),
+#   filename = "Results/Regression Tables/eap_thru_2007cont.tex",
+#   title = "Heterogenous Effects Through Contributions"
+# )
+# 
+# # Center the contributions scaling variable
+# intdid_centered <- my_table(
+#   rhs = "ATT*log_fixedcont2_centered + ATT + treatment + post + log_fixedcont2_centered",
+#   fe = "as.factor(year) + as.factor(FIPS)",
+#   sample_df = df %>% filter(is.finite(log_fixedcont2_centered)),
+#   filename = "Results/Regression Tables/eap_thru_2007cont_centered.tex",
+#   title = "Heterogenous Effects Through Contributions (Centered)"
+# )
+# # lol actually maybe i'm just dumb and centering it doesn't make any difference;
+# # the scaling coefficient doesn't change, just the difference coefficient...
+# 
+# 
+# ## All of the interactions -----------------------------------------------------
+# 
+# # Do not center the contributions scaling variable
+# intdid_allint <- my_table(
+#   rhs = "post*treatment*log_fixedcont2",
+#   fe = "as.factor(year) + as.factor(FIPS)",
+#   sample_df = df %>% filter(is.finite(log_fixedcont2)),
+#   filename = "Results/Regression Tables/eap_intdid_allint.tex",
+#   title = "Heterogenous Effects Through Contributions -- All Interactions"
+# )
+# 
+# ## Check dependence measures ---------------------------------------------------
+# 
+# # Do not center the contributions scaling variable
+# dep1 <- my_table_dependence(
+#   rhs = "ATT*log_fixedcont2",
+#   fe = "as.factor(year) + as.factor(FIPS)",
+#   sample_df = df %>% filter(is.finite(log_fixedcont2)),
+#   filename = "Results/Regression Tables/eap_dep1.tex",
+#   title = "Heterogenous Effects Through Contributions, Various Dependence"
+# )
+# 
+# dep2 <- my_table_dependence(
+#   rhs = "treatment*post*log_fixedcont2",
+#   fe = "as.factor(year) + as.factor(FIPS)",
+#   sample_df = df %>% filter(is.finite(log_fixedcont2)),
+#   filename = "Results/Regression Tables/eap_dep2.tex",
+#   title = "Heterogenous Effects Through Contributions, Various Dependence, All Interactions"
+# )
 
 
 ## Adjust dependence variable & all interactions -------------------------------
 
 # Try using the other dependence measure again: (giving / revenue), but with all
 # the interactions this time
-
-# Do not center the contributions scaling variable
-intdid_alt <- my_table_alt(
-  rhs = "post*treatment*log_fixedcont2",
+intdid <- my_table(
+  rhs = "ATT:log_fixedcont2 + ATT + post:log_fixedcont2",
   fe = "as.factor(year) + as.factor(FIPS)",
   sample_df = df %>% filter(is.finite(log_fixedcont2)),
-  filename = "Results/Regression Tables/eap_intdid_alt.tex",
-  title = "Heterogenous Effects Through Contributions, Alt Dependence, All Interactions"
+  filename = "Results/Regression Tables/eap_twfe_int.tex",
+  title = "Heterogenous Effects Through Contributions"
 )
 
 #:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -271,21 +215,21 @@ my_coefs <- bind_rows(model2_coefs)
 my_coefs <- my_coefs %>% 
   mutate(y = case_when(
            outcome != "Dependence" & estimate_names == "ATT"  ~ (exp(y) - 1)*100,
-           outcome != "Dependence" & estimate_names == "ATT:log_fixedcont2_centered" ~ (1.1^(y) -1)*100,
+           outcome != "Dependence" & estimate_names == "ATT:log_fixedcont2" ~ (1.1^(y) -1)*100,
            outcome == "Dependence" & estimate_names == "ATT" ~ y,
-           outcome == "Dependence" & estimate_names == "ATT:log_fixedcont2_centered" ~ y * log(1.1)
+           outcome == "Dependence" & estimate_names == "ATT:log_fixedcont2" ~ y * log(1.1)
          ),
          ci_low = case_when(
            outcome != "Dependence" & estimate_names == "ATT" ~ (exp(ci_low) - 1)*100,
-           outcome != "Dependence" & estimate_names == "ATT:log_fixedcont2_centered" ~ (1.1^(ci_low) -1)*100,
+           outcome != "Dependence" & estimate_names == "ATT:log_fixedcont2" ~ (1.1^(ci_low) -1)*100,
            outcome == "Dependence" & estimate_names == "ATT" ~ ci_low,
-           outcome == "Dependence" & estimate_names == "ATT:log_fixedcont2_centered" ~ ci_low * log(1.1)
+           outcome == "Dependence" & estimate_names == "ATT:log_fixedcont" ~ ci_low * log(1.1)
          ),
          ci_high = case_when(
            outcome != "Dependence" & estimate_names == "ATT" ~ (exp(ci_high) - 1)*100,
-           outcome != "Dependence" & estimate_names == "ATT:log_fixedcont2_centered" ~ (1.1^(ci_high) -1)*100,
+           outcome != "Dependence" & estimate_names == "ATT:log_fixedcont2" ~ (1.1^(ci_high) -1)*100,
            outcome == "Dependence" & estimate_names == "ATT" ~ ci_high,
-           outcome == "Dependence" & estimate_names == "ATT:log_fixedcont2_centered" ~ ci_high * log(1.1)
+           outcome == "Dependence" & estimate_names == "ATT:log_fixedcont2" ~ ci_high * log(1.1)
          ))
 
 my_coefs$outcome <- factor(my_coefs$outcome, 
@@ -346,10 +290,10 @@ slp1 <- plot_slopes(intdid[[1]],
   theme_bw() +
   geom_hline(yintercept = 0) +
   geom_point(slopeest[[1]], mapping = aes(x=log_fixedcont2, y=estimate)) +
-  annotate("text", x=5,  y=slopeest[[1]][1,'estimate']+0.1, label = slopeest[[1]][1,'pct']) +
-  annotate("text", x=10, y=slopeest[[1]][2,'estimate']+0.1, label = slopeest[[1]][2,'pct']) +
-  annotate("text", x=15, y=slopeest[[1]][3,'estimate']+0.1, label = slopeest[[1]][3,'pct']) +
-  annotate("text", x=20, y=slopeest[[1]][4,'estimate']-0.1, label = slopeest[[1]][4,'pct'])
+  annotate("text", x=5,  y=slopeest[[1]][1,'estimate']+0.15, label = slopeest[[1]][1,'pct']) +
+  annotate("text", x=10, y=slopeest[[1]][2,'estimate']+0.15, label = slopeest[[1]][2,'pct']) +
+  annotate("text", x=15, y=slopeest[[1]][3,'estimate']+0.15, label = slopeest[[1]][3,'pct']) +
+  annotate("text", x=20, y=slopeest[[1]][4,'estimate']-0.15, label = slopeest[[1]][4,'pct'])
 
 slp2 <- plot_slopes(intdid[[2]],
                     variables = "ATT",
@@ -372,10 +316,10 @@ slp3 <- plot_slopes(intdid[[3]],
   theme_bw() +
   geom_hline(yintercept = 0) +
   geom_point(slopeest[[3]], mapping = aes(x=log_fixedcont2, y=estimate)) +
-  annotate("text", x=5,  y=slopeest[[3]][1,'estimate']-2, label = slopeest[[3]][1,'pct']) +
-  annotate("text", x=10, y=slopeest[[3]][2,'estimate']-2, label = slopeest[[3]][2,'pct']) +
-  annotate("text", x=15, y=slopeest[[3]][3,'estimate']-2, label = slopeest[[3]][3,'pct']) +
-  annotate("text", x=20, y=slopeest[[3]][4,'estimate']-2, label = slopeest[[3]][4,'pct'])
+  annotate("text", x=5,  y=slopeest[[3]][1,'estimate']-3, label = slopeest[[3]][1,'pct']) +
+  annotate("text", x=10, y=slopeest[[3]][2,'estimate']-3, label = slopeest[[3]][2,'pct']) +
+  annotate("text", x=15, y=slopeest[[3]][3,'estimate']-3, label = slopeest[[3]][3,'pct']) +
+  annotate("text", x=20, y=slopeest[[3]][4,'estimate']-3, label = slopeest[[3]][4,'pct'])
 
 slopesplot <- ggarrange(slp1, slp2, slp3, nrow = 3)
 annotate_figure(slopesplot, 
