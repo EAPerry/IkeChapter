@@ -978,3 +978,55 @@ print(xtable::xtable(summ_table, digits = 2),
 rm(summ_table, my_stats)
 
 #:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+# Brenna's summary statistics for the discussion section
+qtiles <- main_df %>%
+  group_by(FIPS) %>% 
+  summarise(across(fixedcont2, list(first), .names = "{col}")) %>% 
+  summarise(bottom = quantile(fixedcont2, 0.25),
+            top    = quantile(fixedcont2, 0.75))
+
+comparisons <- main_df %>% 
+  filter(year %in% c(2007, 2012)) %>%
+  select(c("year", "FIPS", "treatment", "NONPROFITS", "EXPS", "TOTREV", "pop", "density",
+           "output", "CONT2", "GOVGT", "GOVSVC", "dependence2", "fixedcont2")) %>%
+  mutate(qtile = case_when(
+    fixedcont2>=qtiles$top ~ "top 25%",
+    fixedcont2<=qtiles$bottom ~ "bottom 25%",
+    TRUE ~ NA)) %>%
+  drop_na()
+
+comparisons %>% 
+  unite("grp", c("treatment" ,"qtile", "year"), remove = T) %>% 
+  select(!FIPS) %>% 
+  tbl_summary(by = grp)
+
+comparisons %>% 
+  mutate(year = factor(year),
+         treatment = factor(treatment, levels = c(0, 1), labels = c("untreated", "treated")),
+         pop = pop/1000) %>% 
+  ggplot(aes(x = year, y = pop, 
+             group = year, fill = treatment)) +
+  geom_boxplot(outliers = F, coef = 0) + 
+  facet_grid(qtile ~ treatment, scales = "free") +
+  ylab("Population (1,000s)")
+
+comparisons %>% 
+  mutate(year = factor(year),
+         treatment = factor(treatment, levels = c(0, 1), labels = c("untreated", "treated")),
+         TOTREV = TOTREV/100000) %>% 
+  ggplot(aes(x = year, y = TOTREV, 
+             group = year, fill = treatment)) +
+  geom_boxplot(outliers = F, coef = 0, notch = F) + 
+  facet_grid(qtile ~ treatment, scales = "free") +
+  ylab("Total Revenues (100,000s)")
+
+comparisons %>% 
+  mutate(year = factor(year),
+         treatment = factor(treatment, levels = c(0, 1), labels = c("untreated", "treated")),
+         CONT2 = CONT2/10000) %>% 
+  ggplot(aes(x = year, y = CONT2, 
+             group = year, fill = treatment)) +
+  geom_boxplot(outliers = F, coef = 0, notch = F) + 
+  facet_grid(qtile ~ treatment, scales = "free") +
+  ylab("Contributions (10,000s)")
+
