@@ -1030,3 +1030,13 @@ comparisons %>%
   facet_grid(qtile ~ treatment, scales = "free") +
   ylab("Contributions (10,000s)")
 
+comparisons %>% 
+  filter(year == 2007) %>% 
+  group_by(qtile) %>% 
+  summarise(across(c("pop", "output", "density", "dependence2"), 
+                   list(mean = mean, median = median), 
+                   .names = "{col}_{fn}"))
+
+comparisons %>% filter(year==2007) %>% 
+  select(c("qtile", "pop", "output", "density", "dependence2")) %>%
+  tbl_summary(by = qtile)
