@@ -329,3 +329,60 @@ annotate_figure(slopesplot,
 tikzDevice::tikz("Results/Figures/slopes_plot.tex", height = 6, width = 5)
 print({slopesplot})
 dev.off()
+
+#:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+
+#:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+# Coefficient Plots ------------------------------------------------------------
+#:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+# Re-estimate to manually include interaction terms for plotting
+intdid <- my_table(
+  rhs = "ATT + ATTxGC + treatment + post + log_fixedcont2",
+  fe = "as.factor(year) + as.factor(FIPS)",
+  sample_df = df %>% filter(is.finite(log_fixedcont2)) %>% mutate(ATTxGC = ATT*log_fixedcont2),
+  filename = "Results/Regression Tables/blj_tabling_interactions.tex",
+  title = "Heterogenous Effects Through Contributions"
+)
+
+#named vector to name variable labels
+vlab <- c(ATT = "Disaster x Post",
+          ATTxGC = " x Log GC 2007")
+
+models <- list("Output" = basicdid[[1]],
+               "Output" = intdid[[1]],
+               "Density" = basicdid[[2]],
+               "Density" = intdid[[2]],
+               "Dependence" = basicdid[[3]],
+               "Dependence" = intdid[[3]])
+
+pbasic <- ggcoef_compare(models[c(1, 3, 5)], type = "d",
+                         variable_labels = vlab) +
+  ggtitle("Basic Models") +
+  theme(legend.position = "none") +
+  xlab(NULL)
+
+
+pinter <- ggcoef_compare(models[c(2, 4, 6)], type = "d",
+                         variable_labels = vlab) +
+  ggtitle("Full Models") +
+  #theme(legend.position = "none") +
+  xlab("Coefficient Estimate")
+
+ggarrange(pbasic, pinter, nrow = 2, common.legend = T, legend = "bottom")
+
+#Alternate approach
+p.outb <- ggcoef_compare(models[1], colour = NULL, variable_labels = vlab) + ggtitle("Output") + xlab("")
+p.outi <- ggcoef_compare(models[2], colour = NULL, variable_labels = vlab)
+p.denb <- ggcoef_compare(models[3], colour = NULL, variable_labels = vlab) + ggtitle("Density") + xlab("")
+p.deni <- ggcoef_compare(models[4], colour = NULL, variable_labels = vlab)
+p.depb <- ggcoef_compare(models[5], colour = NULL, variable_labels = vlab) + ggtitle("Dependence") + xlab("")
+p.depi <- ggcoef_compare(models[6], colour = NULL, variable_labels = vlab)
+
+coefplots <- ggarrange(p.outb, p.denb, p.depb, p.outi, p.deni, p.depi,
+                       nrow = 2, ncol = 3, common.legend = T, legend = "bottom",
+                       legend.grob = get_legend(ggcoef_compare(models[c(2, 4, 6)],
+                                                               type = "f",
+                                                               colour = NULL)))
+
+annotate_figure(coefplots, top = text_grob("Coefficient Plots", size = 18))
