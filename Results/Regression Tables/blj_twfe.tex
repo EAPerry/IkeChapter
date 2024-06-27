@@ -1,0 +1,30 @@
+
+\begin{table}[htbp]
+   \caption{Baseline TWFE}
+   \centering
+   \begin{adjustbox}{max width = \textwidth, center}
+      \begin{tabular}{lccc}
+         \tabularnewline \midrule \midrule
+         Dependent Variables:    & log Output     & log Density    & Dependence\\  
+         Model:                  & (1)            & (2)            & (3)\\  
+         \midrule
+         \emph{Variables}\\
+         Disaster $\times$ Post  & 0.0877$^{***}$ & 0.0354$^{***}$ & -1.971$^{**}$\\   
+                                 & (0.0331)       & (0.0107)       & (0.8718)\\   
+         \midrule
+         \emph{Fixed-effects}\\
+         Year                    & Yes            & Yes            & Yes\\  
+         County                  & Yes            & Yes            & Yes\\  
+         \midrule
+         \emph{Fit statistics}\\
+         Observations            & 6,587          & 6,587          & 6,587\\  
+         R$^2$                   & 0.89166        & 0.91329        & 0.58162\\  
+         Within R$^2$            & 0.00089        & 0.00124        & 0.00081\\  
+         \midrule \midrule
+         \multicolumn{4}{l}{\emph{Heteroskedasticity-robust standard-errors in parentheses}}\\
+         \multicolumn{4}{l}{\emph{Signif. Codes: ***: 0.01, **: 0.05, *: 0.1}}\\
+      \end{tabular}
+   \end{adjustbox}
+\end{table}
+
+

@@ -55,6 +55,7 @@ library(marginaleffects)
 # Aesthetics
 library(stargazer)
 library(ggpubr)
+library(ggstats)
 library(NatParksPalettes)
 
 options(scipen = 99)    # Get rid of scientific notation

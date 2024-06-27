@@ -337,8 +337,16 @@ dev.off()
 # Coefficient Plots ------------------------------------------------------------
 #:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 # Re-estimate to manually include interaction terms for plotting
+basicdid <- my_table(
+  rhs = "post*treatment + ATT",
+  fe = "as.factor(year) + as.factor(FIPS)",
+  sample_df = df,
+  filename = "Results/Regression Tables/blj_twfe.tex",
+  title = "Baseline TWFE"
+)
+
 intdid <- my_table(
-  rhs = "ATT + ATTxGC + treatment + post + log_fixedcont2",
+  rhs = "post*treatment*log_fixedcont2 + ATT + ATTxGC",
   fe = "as.factor(year) + as.factor(FIPS)",
   sample_df = df %>% filter(is.finite(log_fixedcont2)) %>% mutate(ATTxGC = ATT*log_fixedcont2),
   filename = "Results/Regression Tables/blj_tabling_interactions.tex",
@@ -373,11 +381,11 @@ ggarrange(pbasic, pinter, nrow = 2, common.legend = T, legend = "bottom")
 
 #Alternate approach
 p.outb <- ggcoef_compare(models[1], colour = NULL, variable_labels = vlab) + ggtitle("Output") + xlab("")
-p.outi <- ggcoef_compare(models[2], colour = NULL, variable_labels = vlab)
+p.outi <- ggcoef_compare(models[2], colour = NULL, variable_labels = vlab, include = c("ATT", "ATTxGC"))
 p.denb <- ggcoef_compare(models[3], colour = NULL, variable_labels = vlab) + ggtitle("Density") + xlab("")
-p.deni <- ggcoef_compare(models[4], colour = NULL, variable_labels = vlab)
+p.deni <- ggcoef_compare(models[4], colour = NULL, variable_labels = vlab, include = c("ATT", "ATTxGC"))
 p.depb <- ggcoef_compare(models[5], colour = NULL, variable_labels = vlab) + ggtitle("Dependence") + xlab("")
-p.depi <- ggcoef_compare(models[6], colour = NULL, variable_labels = vlab)
+p.depi <- ggcoef_compare(models[6], colour = NULL, variable_labels = vlab, include = c("ATT", "ATTxGC"))
 
 coefplots <- ggarrange(p.outb, p.denb, p.depb, p.outi, p.deni, p.depi,
                        nrow = 2, ncol = 3, common.legend = T, legend = "bottom",
@@ -385,4 +393,4 @@ coefplots <- ggarrange(p.outb, p.denb, p.depb, p.outi, p.deni, p.depi,
                                                                type = "f",
                                                                colour = NULL)))
 
-annotate_figure(coefplots, top = text_grob("Coefficient Plots", size = 18))
+#annotate_figure(coefplots, top = text_grob("Coefficient Plots", size = 18))
