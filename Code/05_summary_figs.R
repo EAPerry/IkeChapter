@@ -980,6 +980,7 @@ rm(summ_table, my_stats)
 #:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 # Brenna's summary statistics for the discussion section
 qtiles <- main_df %>%
+  filter(treatment==1) %>% 
   group_by(FIPS) %>% 
   summarise(across(fixedcont2, list(first), .names = "{col}")) %>% 
   summarise(bottom = quantile(fixedcont2, 0.25),
@@ -1001,42 +1002,60 @@ comparisons %>%
   tbl_summary(by = grp)
 
 comparisons %>% 
+  filter(treatment==1) %>% 
   mutate(year = factor(year),
-         treatment = factor(treatment, levels = c(0, 1), labels = c("untreated", "treated")),
          pop = pop/1000) %>% 
   ggplot(aes(x = year, y = pop, 
-             group = year, fill = treatment)) +
-  geom_boxplot(outliers = F, coef = 0) + 
-  facet_grid(qtile ~ treatment, scales = "free") +
+             group = year, fill = year)) +
+  geom_boxplot(outliers = F, notch = F) + 
+  stat_summary(fun = "mean", geom = "point", shape = 23, size = 3, fill = "black") +
+  facet_wrap(~ qtile, scales = "free") +
   ylab("Population (1,000s)")
 
-comparisons %>% 
+comparisons %>%
+  filter(treatment==1) %>% 
   mutate(year = factor(year),
-         treatment = factor(treatment, levels = c(0, 1), labels = c("untreated", "treated")),
          TOTREV = TOTREV/100000) %>% 
   ggplot(aes(x = year, y = TOTREV, 
-             group = year, fill = treatment)) +
-  geom_boxplot(outliers = F, coef = 0, notch = F) + 
-  facet_grid(qtile ~ treatment, scales = "free") +
+             group = year, fill = year)) +
+  geom_boxplot(outliers = F, notch = F) + 
+  stat_summary(fun = "mean", geom = "point", shape = 23, size = 3, fill = "black") +
+  facet_wrap(~ qtile, scales = "free") +
   ylab("Total Revenues (100,000s)")
 
 comparisons %>% 
+  filter(treatment==1) %>% 
   mutate(year = factor(year),
-         treatment = factor(treatment, levels = c(0, 1), labels = c("untreated", "treated")),
          CONT2 = CONT2/10000) %>% 
   ggplot(aes(x = year, y = CONT2, 
-             group = year, fill = treatment)) +
-  geom_boxplot(outliers = F, coef = 0, notch = F) + 
-  facet_grid(qtile ~ treatment, scales = "free") +
+             group = year, fill = year)) +
+  geom_boxplot(outliers = F, notch = F) +
+  stat_summary(fun = "mean", geom = "point", shape = 23, size = 3, fill = "black") +
+  facet_wrap(~ qtile, scales = "free") +
   ylab("Contributions (10,000s)")
 
 comparisons %>% 
-  filter(year == 2007) %>% 
+  filter(year == 2007 & treatment == 1) %>% 
   group_by(qtile) %>% 
   summarise(across(c("pop", "output", "density", "dependence2"), 
                    list(mean = mean, median = median), 
                    .names = "{col}_{fn}"))
 
-comparisons %>% filter(year==2007) %>% 
-  select(c("qtile", "pop", "output", "density", "dependence2")) %>%
+comparisons %>% filter(year==2007 & treatment == 1) %>% 
+  select(c("qtile", "pop", "output", "density", "dependence2", "TOTREV", "CONT2")) %>%
   tbl_summary(by = qtile)
+
+comparisons %>%
+  mutate(year = factor(year,
+                       levels = c(2007, 2012),
+                       labels = c("Pre-Hurricane", "Post-Hurricane")),
+         TOTREV = TOTREV/100000,
+         treatment = factor(treatment,
+                            levels = c(0, 1),
+                            labels = c("Unimpacted", "Impacted"))) %>%
+  ggplot(aes(x = year, y = TOTREV,
+             group = year, fill = year)) +
+  geom_boxplot(outliers = F) +
+  facet_grid(qtile ~ treatment, scales = "free") +
+  ylab("Total Revenues ($100,000)") +
+  xlab("")

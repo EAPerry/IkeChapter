@@ -52,6 +52,7 @@ library(tmaptools)
 # Estimation
 library(fixest)
 library(marginaleffects)
+library(gtsummary)
 # Aesthetics
 library(stargazer)
 library(ggpubr)
