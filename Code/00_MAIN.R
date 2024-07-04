@@ -52,9 +52,11 @@ library(tmaptools)
 # Estimation
 library(fixest)
 library(marginaleffects)
+library(gtsummary)
 # Aesthetics
 library(stargazer)
 library(ggpubr)
+library(ggstats)
 library(NatParksPalettes)
 
 options(scipen = 99)    # Get rid of scientific notation
