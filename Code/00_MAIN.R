@@ -58,6 +58,8 @@ library(stargazer)
 library(ggpubr)
 library(ggstats)
 library(NatParksPalettes)
+# Peace of mind
+library(tidylog)
 
 options(scipen = 99)    # Get rid of scientific notation
 
@@ -67,7 +69,6 @@ options(ggplot2.continuous.colour= natparks.pals("Yellowstone", 6, type = "conti
 options(ggplot2.continuous.fill = natparks.pals("Yellowstone", 6, type = "continuous"))
 options(ggplot2.discrete.colour= natparks.pals("Yellowstone", 6, type = "discrete"))
 options(ggplot2.discrete.fill = natparks.pals("Yellowstone", 6, type = "discrete"))
-
 
 #:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 

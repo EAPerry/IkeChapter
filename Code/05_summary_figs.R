@@ -15,7 +15,6 @@
 
 main_df <- read_csv("Results/cleaned_filtered_data.csv")
 
-
 #:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 # Comparing the various contributions measures ---------------------------------
 #:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -219,24 +218,12 @@ county_shp <- county_shp %>%
   )
 
 # Temporary availability file
-temp <- main_df %>% 
-  group_by(FIPS) %>% 
+temp <- main_df %>%
+  group_by(FIPS) %>%
   summarise(
     treatment = max(treatment),
-    years_in_sample = n(),
-    population = mean(pop),
-    density = mean(density),
-    concentration = mean(concentration),
-    wealth = mean(wealth),
-    distribution = mean(distribution),
-    output = mean(output),
-    use = mean(use),
-    dependence = mean(dependence),
-    CONT = mean(CONT),
-    EXPS = mean(EXPS),
-    TOTREV = mean(TOTREV),
-    TOTASS = mean(TOTASS)
-  ) %>% 
+    years_in_sample = n()
+  ) %>%
   ungroup()
 
 county_shp <- merge(county_shp, temp, by.x="GEOID", by.y="FIPS", all.x=T)
@@ -251,9 +238,9 @@ v <- tm_shape(county_shp) +
   tm_polygons(
     "treatment",
     border.col = "white",
-    title = "Treatment Status",
+    title = "",
     palette = rev(natparks.pals("Yellowstone", 2, type="discrete"))) + 
-  tm_layout(frame = FALSE)
+  tm_layout(frame = FALSE, legend.text.size = 1.2, legend.hist.width = 0.4)
 print(v)
 dev.off()
 
@@ -342,6 +329,172 @@ rm(county_shp, dist, fema, hurricanes, temp, counties_250, my_states, l)
 # rm(summ_df)
 # 
 # #:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+
+#:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+# Updated Summary Stats Table --------------------------------------------------
+#:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+# Summary stats table function
+make_summ_stats_table <- function(df, vars, var_group_names, out_file) {
+  
+  # Get length of groups
+  var_group_lengths = unlist(lapply(vars,length))
+  
+  # Unlist
+  vars = unlist(vars)
+  var_labs = var_names_latex[vars]
+  
+  # Create initial summary stats table
+  main_summ_stats <- vtable::sumtable(
+    df[,c(vars, 'county_group')],
+    out = 'return',
+    group = 'county_group',
+    group.long = T,
+    labels = var_labs,
+    summ = list(c('sum(!is.na(x))','mean(x)','sd(x)','quantile(x,0.1)','median(x)','quantile(x,0.9)')),
+    summ.names = list(c('Obs','Mean','SD','10\\%','Med','90\\%'))
+  )
+  
+  # # Add in header rows
+  # r = 0
+  # for (i in 1:length(var_group_names)){
+  #   r = r + 1
+  #   new_row <- c(var_group_names[i], rep('',ncol(main_summ_stats)-1))
+  #   main_summ_stats[seq(r+1,nrow(main_summ_stats)+1),] <- main_summ_stats[seq(r,nrow(main_summ_stats)),]
+  #   main_summ_stats[r,] <- new_row
+  #   r = r + var_group_lengths[i]
+  # }
+  
+  # Export the table
+  main_summ_stats <- knitr::kable(main_summ_stats, booktabs = T,
+                                  format = 'latex', escape = F, linesep = '')
+  writeLines(main_summ_stats, out_file)
+  
+  return(nrow(df))
+  
+}
+
+## Summary stats table setup ---------------------------------------------------
+
+# Dataset
+df <- read_csv('Results/cleaned_filtered_data.csv')
+
+df <- df %>% 
+  mutate(
+    EXPS = EXPS / 1000000,
+    TOTREV = TOTREV / 1000000,
+    CONT2 = CONT2 / 1000000,
+    density = density * 1000
+  )
+
+# Variables grouped by category
+vars = list(
+  # County characteristics
+  c("NONPROFITS","EXPS","TOTREV","CONT2","pop"),
+  # Outcome variables
+  c("output","density","dependence2")
+)
+
+# Variable group names
+var_group_names <- c("County Nonprofit Characteristics", "Outcomes")
+
+# Grouping variable
+df$county_group = ifelse(df$treatment == 1, "Treatment", "Control")
+df$county_group = ifelse(df$post == 1, paste0(df$county_group, "-Post"), paste0(df$county_group, "-Pre"))
+
+# LaTeX-ed variable names
+var_names_latex <- c(
+  "NONPROFITS" = "\\# of Nonprofits",
+  "EXPS" = "Expenses (M USD)",
+  "TOTREV" = "Total Revenues (M USD)",
+  "CONT2" = "Contributions (M USD)",
+  "pop" = "Population",
+  "output" = "Output (USD/Capita)",
+  "density" = "Density (Nonprofits/1000 Capita)",
+  "dependence2" = "Dependence (\\%)",
+  "county_group" = "Treatment Status"
+)
+
+## Make table ------------------------------------------------------------------
+
+make_summ_stats_table(
+  df, vars, var_group_names, out_file = "Results/summ-stats-final.tex"
+)
+
+#:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+
+#:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+# Covariate Dist by Log Contributions ------------------------------------------
+#:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+df <- read_csv('Results/cleaned_filtered_data.csv')
+df$county_group = ifelse(df$treatment == 1, "Treatment", "Control")
+df <- df %>% 
+  mutate(
+    log_output = log(output),
+    log_density = log(density),
+    log_fixedcont = log(fixedcont),
+    log_fixedcont2 = log(fixedcont2),
+    log_pop = log(pop),
+    ATT = post*treatment              #specify ATT for marginal effects plotting
+  )
+
+# Histogram of conts and log conts
+ggplot(df %>% distinct(FIPS, fixedcont2), aes(x = fixedcont2)) +
+  geom_histogram(fill = natparks.pals("Yellowstone", 1, type = "discrete")) +
+  labs(x = "\n2007 Contributions (USD)", y = "# of Counties\n") 
+
+ggplot(df %>% distinct(FIPS, log_fixedcont2), aes(x = log_fixedcont2)) +
+  geom_histogram(fill = natparks.pals("Yellowstone", 1, type = "discrete")) +
+  labs(x = "\nLog 2007 Contributions", y = "# of Counties\n") 
+
+ggplot(df %>% distinct(FIPS, log_fixedcont2, county_group), aes(x = log_fixedcont2, fill = county_group)) +
+  geom_histogram() +
+  scale_fill_manual(values = natparks.pals("Yellowstone", 2, type = "discrete")) + 
+  labs(x = "\nLog 2007 Contributions", y = "# of Counties\n") +
+  theme(legend.title = element_blank())
+
+# Contributions and population
+ggplot(df %>% filter(year == 2007), aes(x = log(pop), y = log_fixedcont2, color = county_group)) +
+  geom_point() +
+  scale_color_manual(values = natparks.pals("Yellowstone", 2, type = "discrete")) + 
+  labs(y = "Log 2007 Contributions\n", x = "\nLog 2007 Population") +
+  theme(legend.title = element_blank())
+  
+# Geographic Dist.
+county_shp <- st_as_sf(county_laea)
+df_2007 <- df %>% distinct(FIPS, log_fixedcont2, treatment)
+df_2007$overlog15 <- ifelse(df_2007$log_fixedcont2 > 15, "log Cont > 15", "log Cont < 15")
+df_2007$treatment_str <- ifelse(df_2007$treatment == 1, "Treatment", "Control")
+county_shp <- merge(county_shp, df_2007, by.x = "GEOID", by.y = "FIPS")
+
+png("Results/Figures/cont_geography.png", width=7, height = 4, units="in",
+    res=600)
+v <- tm_shape(county_shp) +
+  tm_polygons(col = 'overlog15', 
+              border.col = "white",
+              palette = natparks.pals("Yellowstone", 6, type = "discrete")[5:6],
+              title = "") + 
+  tm_layout(frame = F, legend.text.size = 1.2, legend.hist.width = 0.4)
+print(v)
+dev.off()
+
+
+png("Results/Figures/geographic_sample.png", width=7, height = 4, units="in",
+    res=600)
+tm_shape(county_shp) +
+  tm_polygons(col = 'treatment_str', 
+              border.col = "white",
+              palette = rev(natparks.pals("Yellowstone", 2, type="discrete")),
+              title = "") + 
+  tm_layout(frame = F, legend.text.size = 1.2, legend.hist.width = 0.4)
+print(v)
+dev.off()
+
+
+#:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
 
 #:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -929,13 +1082,44 @@ ggarrange(poutput, pdensity, pdependence,
 # Summary Stats Table ----------------------------------------------------------
 #:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
-my_stats <- c("pop", "LAND_AREA", "NONPROFITS", "CONT", "EXPS", "TOTREV", "output",
-              "density", "dependence")
+df <- read_csv('Results/cleaned_filtered_data.csv')
 
-summ_table <- main_df %>% 
+# Give some log transforms to the data (a little treat)
+df <- df %>% 
+  mutate(
+    log_output = log(output),
+    log_density = log(density),
+    log_fixedcont = log(fixedcont),
+    log_fixedcont2 = log(fixedcont2),
+    log_pop = log(pop),
+    ATT = post*treatment              #specify ATT for marginal effects plotting
+  )
+
+# And make a little data dictionary
+var_labs <- c(
+  `as.factor(year)` = "Year",
+  `as.factor(FIPS)` = "County",
+  treatment = "Disaster",
+  post = "Post",
+  tpost = "Years Post",
+  log_fixedcont = "log GC$_{2007}$",
+  log_fixedcont2 = "log GC$_{2007}$",
+  log_output = "log Output",
+  log_density = "log Density",
+  dependence = "Dependence",
+  dependence2 = "Dependence",
+  dependence3 = "Dependence",
+  log_pop = "log Population",
+  ATT = "Disaster $\\times$ Post"
+)
+
+my_stats <- c("pop", "NONPROFITS", "CONT2", "EXPS", "TOTREV", "output",
+              "density", "dependence2")
+
+summ_table <- df %>% 
   mutate(density = density * 1000) %>% 
   select(all_of(c(my_stats, 'treatment'))) %>% 
-  mutate(across(all_of(c("CONT", "EXPS", "TOTREV")), ~.x / 1000000)) %>% 
+  mutate(across(all_of(c("CONT2", "EXPS", "TOTREV")), ~.x / 1000000)) %>% 
   group_by(treatment) %>% 
   summarise(
     across(everything(), 
@@ -953,9 +1137,10 @@ summ_table <- main_df %>%
     var = stringi::stri_replace_all_regex(
       pattern =  my_stats, 
       replacement = c(
-        'Population', 'Land Area', '# of Nonprofits', 'Contributions (mil USD)', 
-        'Expenses (mil USD)', 'Revenues (mil USD)', 'Output (USD)', 'Density',
-        'Resource Dependence'),
+        'Population', '# of Nonprofits', 'Contributions (M USD)', 
+        'Expenses (M USD)', 'Revenues (M USD)', 'Output (USD)', 'Density',
+        'Dependence'
+      ), 
       var,  vectorize = FALSE),
     stat = stringi::stri_replace_all_regex(
       pattern = paste(my_stats, '_', sep=''),

@@ -69,6 +69,24 @@ df <- df %>%
     ATT = post*treatment              #specify ATT for marginal effects plotting
   )
 
+temp <- df %>% 
+  group_by(post, treatment, FIPS) %>%
+  summarize(
+    log_fixedcont2 = mean(log_fixedcont2),
+    dependence2 = mean(dependence2)
+  )
+temp <- temp %>% 
+  pivot_wider(id_cols = c(FIPS, treatment, log_fixedcont2), names_from = post, values_from = dependence2)
+temp <- temp %>% 
+  mutate(chng = `1` - `0`)
+
+ggplot(temp %>% filter(treatment == 1), aes(x = log_fixedcont2, y = chng)) +
+  geom_point() +
+  labs(x = "Log 2007 Contributions", y = "Post Dep - Pre Dep", title = "Change in Avg Depedence for Treated Counties")
+  
+
+
+
 # # Create centered versions of the scaling variable(s)
 # center1 <- df %>% filter(is.finite(log(fixedcont)))
 # center1 <- mean(log(center1$fixedcont))
@@ -131,13 +149,13 @@ basicdid <- my_table(
 
 ## Some of the interactions ----------------------------------------------------
 
-# # Do not center the contributions scaling variable
+# Do not center the contributions scaling variable
 # intdid <- my_table(
 #   rhs = "ATT*log_fixedcont2 + ATT + treatment + post + log_fixedcont2",
 #   fe = "as.factor(year) + as.factor(FIPS)",
 #   sample_df = df %>% filter(is.finite(log_fixedcont2)),
 #   filename = "Results/Regression Tables/eap_thru_2007cont.tex",
-#   title = "Heterogenous Effects Through Contributions"
+#   title = "Heterogeneous Effects Through Contributions"
 # )
 # 
 # # Center the contributions scaling variable
@@ -192,7 +210,7 @@ intdid <- my_table(
   fe = "as.factor(year) + as.factor(FIPS)",
   sample_df = df %>% filter(is.finite(log_fixedcont2)),
   filename = "Results/Regression Tables/eap_twfe_int.tex",
-  title = "Heterogenous Effects Through Contributions"
+  title = "Heterogeneous Effects Through Contributions"
 )
 
 #:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -264,21 +282,22 @@ dev.off()
 #:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 # Plot the marginal effects-----------------------------------------------------
 #:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-#Automatically uses het robust se because that's built into model estimation
-#Extract estimates at specific values of log_fixedcont for graphing
+# Automatically uses het robust se because that's built into model estimation
+# Extract estimates at specific values of log_fixedcont for graphing
 slopeest <- list()
 for (i in 1:3){
   slopeest[[i]]<- slopes(intdid[[i]], variables = "ATT",
                          newdata = datagrid(log_fixedcont2 = c(5, 10, 15, 20)))
-
+  
+  slopeest[[i]] <- slopeest[[i]] %>%
+    mutate(pct = round(estimate, 2))
+  
   if (i<3){
     slopeest[[i]] <- slopeest[[i]] %>%
-      mutate(pct = case_when(
-        estimate > 0 ~ paste0(round(exp(estimate)*100,0),"\\%"),
-        TRUE ~ paste0("-",round((1-exp(estimate))*100,0),"\\%")))
+      mutate(pct = paste0(round((exp(estimate)-1)*100,0), "\\%"))
   } else {
-    slopeest[[i]] <- slopeest[[i]] %>% 
-      mutate(pct = round(estimate,2))
+    slopeest[[i]] <- slopeest[[i]] %>%
+      mutate(pct = paste(round(estimate,1), "ppt"))
   }
 }
 
@@ -286,7 +305,7 @@ slp1 <- plot_slopes(intdid[[1]],
             variables = "ATT",
             condition = "log_fixedcont2") +
   labs(x = "Log of 2007 Contributions",
-       y = "Average change in log(Output)") +
+       y = "Average change \nin log(Output)") +
   theme_bw() +
   geom_hline(yintercept = 0) +
   geom_point(slopeest[[1]], mapping = aes(x=log_fixedcont2, y=estimate)) +
@@ -299,32 +318,32 @@ slp2 <- plot_slopes(intdid[[2]],
                     variables = "ATT",
                     condition = "log_fixedcont2") +
   labs(x = "Log of 2007 Contributions",
-       y = "Average change in log(Density)") +
+       y = "Average change \nin log(Density)") +
   theme_bw() +
   geom_hline(yintercept = 0) +
   geom_point(slopeest[[2]], mapping = aes(x=log_fixedcont2, y=estimate)) +
   annotate("text", x=5,  y=slopeest[[2]][1,'estimate']+0.1, label = slopeest[[2]][1,'pct']) +
   annotate("text", x=10, y=slopeest[[2]][2,'estimate']+0.1, label = slopeest[[2]][2,'pct']) +
   annotate("text", x=15, y=slopeest[[2]][3,'estimate']+0.1, label = slopeest[[2]][3,'pct']) +
-  annotate("text", x=20, y=slopeest[[2]][4,'estimate']-0.1, label = slopeest[[2]][4,'pct'])
+  annotate("text", x=20, y=slopeest[[2]][4,'estimate']-0.07, label = slopeest[[2]][4,'pct'])
 
 slp3 <- plot_slopes(intdid[[3]],
                     variables = "ATT",
                     condition = "log_fixedcont2") +
   labs(x = "Log of 2007 Contributions",
-       y = "Average change in Resource Dependence") +
+       y = "Average change in \nResource Dependence") +
   theme_bw() +
   geom_hline(yintercept = 0) +
   geom_point(slopeest[[3]], mapping = aes(x=log_fixedcont2, y=estimate)) +
   annotate("text", x=5,  y=slopeest[[3]][1,'estimate']-3, label = slopeest[[3]][1,'pct']) +
   annotate("text", x=10, y=slopeest[[3]][2,'estimate']-3, label = slopeest[[3]][2,'pct']) +
   annotate("text", x=15, y=slopeest[[3]][3,'estimate']-3, label = slopeest[[3]][3,'pct']) +
-  annotate("text", x=20, y=slopeest[[3]][4,'estimate']-3, label = slopeest[[3]][4,'pct'])
+  annotate("text", x=20, y=slopeest[[3]][4,'estimate']+4, label = slopeest[[3]][4,'pct'])
 
 slopesplot <- ggarrange(slp1, slp2, slp3, nrow = 3)
-annotate_figure(slopesplot, 
-                top = text_grob("Average Changes in Nonprofit Indicators Post-Hurricane by Scale of Pre-Disaster GC",
-                                face = "bold", size = 14))
+# annotate_figure(slopesplot, 
+#                 top = text_grob("Average Changes in Nonprofit Indicators Post-Hurricane by Scale of Pre-Disaster GC",
+#                                 face = "bold", size = 14))
 
 tikzDevice::tikz("Results/Figures/slopes_plot.tex", height = 6, width = 5)
 print({slopesplot})
